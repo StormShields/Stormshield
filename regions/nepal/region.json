@@ -244,6 +244,16 @@
       "why": "Furthest upstream station of the replay; sees the surge first."
     }
   ],
+  "hub_site": {
+    "id": "hub",
+    "label": "Betrawati",
+    "pos": [
+      27.9731,
+      85.186
+    ],
+    "river_km": 45.6,
+    "why": "Where the Bhote Koshi replay's Hub has always run: the town at the bottom of the reach, about 7 km from the Betrawati reach sensor site, which sees the surge last."
+  },
   "sources": {
     "terrain": {
       "url": "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png",

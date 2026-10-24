@@ -6,7 +6,7 @@ from typing import Any
 import httpx
 import pytest
 from fastapi.testclient import TestClient
-from fixture_pack import build_fixture_pack
+from fixture_pack import build_nepal_pack
 from meshed_nodes import MeshedNodes
 
 from storm_shield import sandbox as sandbox_module
@@ -18,7 +18,7 @@ from storm_shield.sandbox import HUB_SITE, SENSOR_SITES, Sandbox, SandboxError, 
 @pytest.fixture
 def pack(tmp_path: Path) -> Path:
     path = tmp_path / "cache-pack.zip"
-    path.write_bytes(build_fixture_pack())
+    path.write_bytes(build_nepal_pack())
     return path
 
 

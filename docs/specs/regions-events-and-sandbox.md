@@ -18,7 +18,7 @@ The demo also carries parts that only made sense on stage: a Simulated Fleet of 
 
 ## Solution
 
-A **Region** is one small hand-written file, `regions/<name>/region.json`. It gives the place's area, time zone, display units, official alert source, the water it watches (a river or a coast), the thresholds its Rule set uses, its Shelters, its suggested sensor sites and its data sources. One build command turns it into the Region's Cache Pack. Packs for the built-in Regions are published as GitHub Releases. Adding a place means writing that file, not code.
+A **Region** is one small hand-written file, `regions/<name>/region.json`. It gives the place's area, time zone, display units, official alert source, the water it watches (a river or a coast), the thresholds its Rule set uses, its Shelters, its suggested sensor sites, where its Hub runs and its data sources. One build command turns it into the Region's Cache Pack. Packs for the built-in Regions are published as GitHub Releases. Adding a place means writing that file, not code.
 
 The first new Region is **Fort Myers**: Fort Myers Beach and Estero Bay, from downtown Fort Myers to Bonita Springs. Its first Event is **Hurricane Ian's storm surge on 28 September 2022**. Fort Myers is the default Region and the one the tests use. Nepal stays as a second Region only as far as moving it is mechanical.
 
@@ -182,6 +182,7 @@ The Simulated Fleet, the camera clips and Cameras Panel, and the breadboard and 
     A river Region has a `flash_flood` block instead (`surge_rise` 300 cm, `surge_window_s` 60, plus Elevated, High and rising levels). These are today's constants, moved. The Fort Myers numbers above are placeholders for the first ticket to set from the NWS storm-surge categories.
   - `shelters` (id, name, position, kinds). They are hand-picked; a Shelter must lie outside the Flood-Prone Area.
   - `high_ground` (optional) and `sensor_sites` (id, label, position, why).
+  - `hub_site`, where the Region's Hub runs, in a sensor site's shape (Dunbar High School for Fort Myers, Betrawati for Nepal). The Sandbox starts its Hub there.
   - `official_gauges` (agency, station id, label, position, datum offset).
   - `sources` (terrain, roads, basemap, weather, gauges, warnings), each with a URL and a credit.
 - **The Region's water type picks the live Hazard**: a river means a flash flood, a coast means a storm surge. An Event's Hazard must be one the Region has thresholds for.

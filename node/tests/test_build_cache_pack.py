@@ -126,6 +126,7 @@ def _fixture_region(folder: Path, **changes: Any) -> Path:
             }
         ],
         "sensor_sites": [],
+        "hub_site": {"id": "hub", "label": "Gym", "pos": list(SHELTER), "why": "inside the box"},
         "sources": {
             "terrain": {"url": "sources/terrain/{z}/{x}/{y}.png", "credit": "terrain credit"},
             "roads": {"url": "sources/roads.osm.pbf", "credit": "roads credit"},

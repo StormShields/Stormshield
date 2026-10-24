@@ -94,6 +94,13 @@ def test_a_sensor_site_outside_the_box_is_named(tmp_path: Path) -> None:
         load_region(path)
 
 
+def test_a_hub_site_outside_the_box_is_named(tmp_path: Path) -> None:
+    hub_site = json.loads(NEPAL.read_text())["hub_site"] | {"pos": [0.0, 0.0]}
+    path = _write_region(tmp_path, hub_site=hub_site)
+    with pytest.raises(RegionError, match="hub_site"):
+        load_region(path)
+
+
 def test_a_node_will_not_start_on_a_bad_region_file(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -162,6 +169,8 @@ def test_fort_myers_is_a_coast_region_read_in_feet_and_miles() -> None:
     assert all(shelter.height_above_river_m is None for shelter in region.shelters)
     assert region.high_ground == []
     assert region.summary().water_type == "coast"
+    # The Hub runs in a Shelter, which is dry ground where people gather.
+    assert region.hub_site.pos in [shelter.pos for shelter in region.shelters]
 
 
 @pytest.mark.parametrize(

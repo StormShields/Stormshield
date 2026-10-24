@@ -2,7 +2,7 @@ import logging
 from pathlib import Path
 
 import pytest
-from fixture_pack import SHELTERS, build_fixture_pack
+from fixture_pack import SHELTERS, build_nepal_pack
 from meshed_nodes import MeshedNodes
 
 from storm_shield.community_reading import CommunityReading, Measurement, Position
@@ -18,7 +18,7 @@ def _open(meshed_nodes: MeshedNodes, name: str) -> list[str]:
 
 
 def _start(meshed_nodes: MeshedNodes, tmp_path: Path) -> None:
-    meshed_nodes.start("porch", cache_pack=(tmp_path, build_fixture_pack()))
+    meshed_nodes.start("porch", cache_pack=(tmp_path, build_nepal_pack()))
 
 
 def test_a_message_of_an_unknown_kind_is_dropped_without_a_log(
@@ -93,7 +93,7 @@ def test_a_node_whose_listener_raises_does_not_stop_the_nodes_after_it(
     meshed_nodes: MeshedNodes, tmp_path: Path
 ) -> None:
     meshed_nodes.join_with_failing_listener("faulty")
-    meshed_nodes.start("garage", cache_pack=(tmp_path, build_fixture_pack()))
+    meshed_nodes.start("garage", cache_pack=(tmp_path, build_nepal_pack()))
     meshed_nodes.announce_shelters(1, [OPEN_SHELTER])
     assert _open(meshed_nodes, "garage") == [OPEN_SHELTER]
 

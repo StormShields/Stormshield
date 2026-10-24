@@ -48,7 +48,7 @@ NEPAL_ENTRY = {
 }
 
 
-def build_fixture_pack(
+def build_nepal_pack(
     *,
     corrupt_tile: bool = False,
     leave_out_tile: bool = False,
@@ -59,7 +59,12 @@ def build_fixture_pack(
     shelters: list[dict[str, object]] = SHELTERS,
     region_file: bytes | None = None,
 ) -> bytes:
-    """A tiny Cache Pack in the real layout; the flags break it in the ways a download can break."""
+    """A tiny Nepal Cache Pack in the real layout; the flags break it in the ways a download can
+    break.
+
+    Nepal because the only Replay is the Bhote Koshi's, on a river. Tests move to the Fort Myers
+    fixture pack (`fort_myers_pack.py`) once the coast water surface exists (#48, then #90).
+    """
     files = {
         "shelters.json": json.dumps(shelters).encode(),
         "flood_prone.geojson": json.dumps(FLOOD_PRONE).encode(),

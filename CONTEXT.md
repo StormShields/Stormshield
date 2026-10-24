@@ -95,7 +95,7 @@ The kind of Event: flash flood or storm surge today, others (lightning, frost) a
 _Avoid_: event type, threat, disaster
 
 **Replay**:
-How an Event is played: a file describing the water surface and weather over time, played on the Event clock. The surface is a set of stations, each a level series; on a river they sit at River kms, and a Sensor Node inside the corridor reads the level interpolated along River km, while one outside it is dry and sends no water level. Each Sensor Node reads its Simulated Readings at its own position, so a Node on high ground stays dry; a real Event's Replay is rebuilt from recorded gauges and reports, and its Official Alerts appear at their real times. Always labelled REPLAY.
+How an Event is played: a file describing the water surface and weather over time, played on the Event clock. The surface is a set of stations, each a level series; on a river they sit at River kms, and a Sensor Node inside the corridor reads the level interpolated along River km, while one outside it is dry and sends no water level. Each Sensor Node reads its Simulated Readings at its own position, so a Node on high ground stays dry; a real Event's Replay is rebuilt from recorded gauges and reports, and its Official Alerts appear at their real times. Always labelled REPLAY. A Replay is for checking the system and for demos: a Region runs either on live readings or on one of its own Replays, never both on one map, and never another Region's Replay.
 _Avoid_: playback, recording, simulation
 
 **Event clock**:
@@ -127,7 +127,7 @@ A signed warning the Hub issues when one Registered Node reports a Surge; it nam
 _Avoid_: alert, alarm, evacuation notice
 
 **Region**:
-The place a Storm Shield network watches, described in one small hand-written file: its name, area, time zone, display units, official alert source, the water it watches (river or coast), the thresholds its Rule set uses, its Shelters and its suggested sensor sites. Adding a region means writing this file, not code. Nepal's Bhote Koshi valley is one Region; a Florida coast is the second.
+The place a Storm Shield network watches, described in one small hand-written file: its name, area, time zone, display units, official alert source, the water it watches (river or coast), the thresholds its Rule set uses, its Shelters, its suggested sensor sites and where its Hub runs. Adding a region means writing this file, not code. Nepal's Bhote Koshi valley is one Region; a Florida coast is the second.
 _Avoid_: map, area, location, scenario
 
 **Cache Pack**:

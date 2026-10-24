@@ -2,7 +2,7 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 
-from fixture_pack import SHELTERS, build_fixture_pack
+from fixture_pack import SHELTERS, build_nepal_pack
 from httpx import Response
 from meshed_nodes import MeshedNodes
 
@@ -12,7 +12,7 @@ TWO_SHELTERS = [*SHELTERS, {**SHELTERS[0], "id": LIBRARY, "name": "Test Library"
 
 
 def _start_hub(meshed_nodes: MeshedNodes, tmp_path: Path, **options: float) -> None:
-    pack = build_fixture_pack(shelters=TWO_SHELTERS)
+    pack = build_nepal_pack(shelters=TWO_SHELTERS)
     meshed_nodes.start_hub((tmp_path, pack), **options)
 
 
@@ -37,7 +37,7 @@ def _wait_until(condition: Callable[[], bool]) -> None:
 def test_a_hub_with_a_pack_starts_with_every_shelter_open(
     meshed_nodes: MeshedNodes, tmp_path: Path
 ) -> None:
-    meshed_nodes.start("porch", cache_pack=(tmp_path, build_fixture_pack(shelters=TWO_SHELTERS)))
+    meshed_nodes.start("porch", cache_pack=(tmp_path, build_nepal_pack(shelters=TWO_SHELTERS)))
     _start_hub(meshed_nodes, tmp_path)
     assert _open(meshed_nodes, "hub") == [GYM, LIBRARY]
     assert _open(meshed_nodes, "porch") == [GYM, LIBRARY]
@@ -47,7 +47,7 @@ def test_closing_a_shelter_on_the_hub_drops_it_everywhere(
     meshed_nodes: MeshedNodes, tmp_path: Path
 ) -> None:
     meshed_nodes.start(
-        "porch", "garage", cache_pack=(tmp_path, build_fixture_pack(shelters=TWO_SHELTERS))
+        "porch", "garage", cache_pack=(tmp_path, build_nepal_pack(shelters=TWO_SHELTERS))
     )
     _start_hub(meshed_nodes, tmp_path)
     response = _set(meshed_nodes, GYM, False)
@@ -58,7 +58,7 @@ def test_closing_a_shelter_on_the_hub_drops_it_everywhere(
 
 
 def test_a_closed_shelter_can_be_opened_again(meshed_nodes: MeshedNodes, tmp_path: Path) -> None:
-    meshed_nodes.start("porch", cache_pack=(tmp_path, build_fixture_pack(shelters=TWO_SHELTERS)))
+    meshed_nodes.start("porch", cache_pack=(tmp_path, build_nepal_pack(shelters=TWO_SHELTERS)))
     _start_hub(meshed_nodes, tmp_path)
     _set(meshed_nodes, GYM, False)
     _set(meshed_nodes, GYM, True)
@@ -79,7 +79,7 @@ def test_a_hub_without_a_pack_refuses_changes(meshed_nodes: MeshedNodes) -> None
 
 
 def test_a_sensor_has_no_such_route(meshed_nodes: MeshedNodes, tmp_path: Path) -> None:
-    meshed_nodes.start("porch", cache_pack=(tmp_path, build_fixture_pack()))
+    meshed_nodes.start("porch", cache_pack=(tmp_path, build_nepal_pack()))
     response = meshed_nodes["porch"].post("/api/shelters/open", json={"id": GYM, "open": False})
     assert response.status_code == 404
 
@@ -89,5 +89,5 @@ def test_a_node_that_joins_late_converges_after_a_repeat(
 ) -> None:
     _start_hub(meshed_nodes, tmp_path, shelter_repeat_seconds=0.02)
     _set(meshed_nodes, GYM, False)
-    meshed_nodes.start("porch", cache_pack=(tmp_path, build_fixture_pack(shelters=TWO_SHELTERS)))
+    meshed_nodes.start("porch", cache_pack=(tmp_path, build_nepal_pack(shelters=TWO_SHELTERS)))
     _wait_until(lambda: _open(meshed_nodes, "porch") == [LIBRARY])

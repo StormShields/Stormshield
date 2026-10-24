@@ -1,13 +1,13 @@
 from pathlib import Path
 
-from fixture_pack import SHELTERS, build_fixture_pack
+from fixture_pack import SHELTERS, build_nepal_pack
 from meshed_nodes import MeshedNodes
 
 OPEN_SHELTER = str(SHELTERS[0]["id"])
 
 
 def _start(meshed_nodes: MeshedNodes, tmp_path: Path, *names: str) -> None:
-    meshed_nodes.start(*names, cache_pack=(tmp_path, build_fixture_pack()))
+    meshed_nodes.start(*names, cache_pack=(tmp_path, build_nepal_pack()))
 
 
 def _open(meshed_nodes: MeshedNodes, name: str) -> list[str]:

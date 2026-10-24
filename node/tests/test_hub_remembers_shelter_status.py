@@ -3,7 +3,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
-from fixture_pack import SHELTERS, build_fixture_pack
+from fixture_pack import SHELTERS, build_nepal_pack
 from meshed_nodes import MeshedNodes
 
 GYM = str(SHELTERS[0]["id"])
@@ -31,14 +31,14 @@ def _start_hub(
     meshed_nodes: MeshedNodes, tmp_path: Path, shelters: list[dict[str, object]]
 ) -> None:
     meshed_nodes.start_hub(
-        (tmp_path, build_fixture_pack(shelters=shelters)), shelter_repeat_seconds=REPEAT_SECONDS
+        (tmp_path, build_nepal_pack(shelters=shelters)), shelter_repeat_seconds=REPEAT_SECONDS
     )
 
 
 def test_a_restarted_hub_keeps_a_closed_shelter_closed_on_every_node(
     meshed_nodes: MeshedNodes, tmp_path: Path
 ) -> None:
-    pack = build_fixture_pack(shelters=TWO_SHELTERS)
+    pack = build_nepal_pack(shelters=TWO_SHELTERS)
     meshed_nodes.start("porch", "garage", cache_pack=(tmp_path, pack))
     _start_hub(meshed_nodes, tmp_path, TWO_SHELTERS)
     _set_open(meshed_nodes, GYM, False)
@@ -54,7 +54,7 @@ def test_a_restarted_hub_keeps_a_closed_shelter_closed_on_every_node(
 def test_a_shelter_missing_from_the_pack_after_a_restart_is_dropped(
     meshed_nodes: MeshedNodes, tmp_path: Path
 ) -> None:
-    meshed_nodes.start("porch", cache_pack=(tmp_path, build_fixture_pack(shelters=TWO_SHELTERS)))
+    meshed_nodes.start("porch", cache_pack=(tmp_path, build_nepal_pack(shelters=TWO_SHELTERS)))
     _start_hub(meshed_nodes, tmp_path, TWO_SHELTERS)
 
     meshed_nodes.stop_hub()
@@ -108,7 +108,7 @@ def test_a_state_file_that_cannot_be_read_stops_the_hub_and_names_the_file(
 def test_a_change_that_cannot_be_saved_is_not_announced(
     meshed_nodes: MeshedNodes, tmp_path: Path
 ) -> None:
-    meshed_nodes.start("porch", cache_pack=(tmp_path, build_fixture_pack(shelters=TWO_SHELTERS)))
+    meshed_nodes.start("porch", cache_pack=(tmp_path, build_nepal_pack(shelters=TWO_SHELTERS)))
     _start_hub(meshed_nodes, tmp_path, TWO_SHELTERS)
     # A directory where the temporary file belongs makes every save fail.
     (tmp_path / "hub" / "data" / "shelter_status.tmp").mkdir()

@@ -53,13 +53,14 @@ class NodeSite(NamedTuple):
     river_km: float | None
 
 
-# The Hub sits at Betrawati until a Region says where its Hub goes.
-HUB_SITE = NodeSite(HUB, 27.9731, 85.1860, 45.6)
+_REGION = load_region(region_path(Settings().region))
+HUB_SITE = NodeSite(
+    HUB, _REGION.hub_site.pos[0], _REGION.hub_site.pos[1], _REGION.hub_site.river_km
+)
 # The Region's sensor sites, in the file's order: nearest the Hub first, because a Node's first
 # reading goes out as it joins and only reaches the Hub if the Nodes between are already there.
 SENSOR_SITES = [
-    NodeSite(site.id, site.pos[0], site.pos[1], site.river_km)
-    for site in load_region(region_path(Settings().region)).sensor_sites
+    NodeSite(site.id, site.pos[0], site.pos[1], site.river_km) for site in _REGION.sensor_sites
 ]
 
 
