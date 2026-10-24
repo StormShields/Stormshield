@@ -127,7 +127,7 @@ A signed warning the Hub issues when one Registered Node reports a Surge; it nam
 _Avoid_: alert, alarm, evacuation notice
 
 **Region**:
-The place a Storm Shield network watches, described in one small hand-written file: its name, area, time zone, display units, official alert source, the water it watches (river or coast), the thresholds its Rule set uses, its Shelters and its suggested sensor sites. Adding a region means writing this file, not code. Nepal's Bhote Koshi valley is one Region; a Florida coast is the second.
+The place a Storm Shield network watches, described in one small hand-written file: its name, area, time zone, display units, official alert source, the water it watches (river or coast), the thresholds its Rule set uses, its Shelters, its suggested sensor sites and where its Hub runs. Adding a region means writing this file, not code. Nepal's Bhote Koshi valley is one Region; a Florida coast is the second.
 _Avoid_: map, area, location, scenario
 
 **Cache Pack**:

@@ -6,7 +6,7 @@ from typing import Any
 import httpx
 import pytest
 from fastapi.testclient import TestClient
-from fixture_pack import WEATHER_PATH, WEATHER_REPLAY, build_fixture_pack
+from fixture_pack import WEATHER_PATH, WEATHER_REPLAY, build_nepal_pack
 from http_retry import ATTEMPTS, RequestFailed
 from pack_weather import fetch_weather_replay, weather_replay_from_archive
 from test_cache_pack import PackSource
@@ -121,14 +121,14 @@ def test_one_request_asks_for_every_point() -> None:
 
 
 def test_a_node_serves_the_weather_from_its_pack(tmp_path: Path) -> None:
-    source = PackSource(build_fixture_pack(with_weather=True))
+    source = PackSource(build_nepal_pack(with_weather=True))
     with _node(tmp_path, source.client) as node:
         _wait_until(lambda: node.get("/api/weather/replay").status_code == 200)
         assert node.get("/api/weather/replay").json() == WEATHER_REPLAY
 
 
 def test_a_pack_without_weather_answers_404_with_a_message(tmp_path: Path) -> None:
-    source = PackSource(build_fixture_pack())
+    source = PackSource(build_nepal_pack())
     with _node(tmp_path, source.client) as node:
         _wait_until(lambda: node.get("/api/cache-pack").json()["available"])
         answer = node.get("/api/weather/replay")
@@ -143,7 +143,7 @@ def test_a_node_with_no_pack_at_all_answers_404(tmp_path: Path) -> None:
 
 
 def test_a_pack_whose_weather_checksum_is_wrong_is_discarded(tmp_path: Path) -> None:
-    source = PackSource(build_fixture_pack(with_weather=True, corrupt_weather=True))
+    source = PackSource(build_nepal_pack(with_weather=True, corrupt_weather=True))
     with _node(tmp_path, source.client) as node:
         _wait_until(lambda: source.requests >= 1)
         time.sleep(0.2)
@@ -152,7 +152,7 @@ def test_a_pack_whose_weather_checksum_is_wrong_is_discarded(tmp_path: Path) -> 
 
 
 def test_weather_corrupted_on_disk_discards_the_pack_at_startup(tmp_path: Path) -> None:
-    source = PackSource(build_fixture_pack(with_weather=True))
+    source = PackSource(build_nepal_pack(with_weather=True))
     with _node(tmp_path, source.client) as first:
         _wait_until(lambda: first.get("/api/weather/replay").status_code == 200)
     (tmp_path / "node" / "files" / WEATHER_PATH).write_bytes(b"bit rot")

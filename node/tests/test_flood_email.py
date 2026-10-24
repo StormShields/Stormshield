@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, ClassVar, Self
 
 import pytest
-from fixture_pack import build_fixture_pack
+from fixture_pack import build_nepal_pack
 from meshed_nodes import MeshedNodes
 
 from storm_shield.flood_email import FloodEmail
@@ -176,7 +176,7 @@ def test_a_failing_send_still_issues_the_warning_and_never_logs_the_password(
 def test_a_warning_during_a_replay_has_a_loud_rehearsal_subject(
     meshed_nodes: MeshedNodes, tmp_path: Path
 ) -> None:
-    meshed_nodes.start_hub(cache_pack=(tmp_path / "packs", build_fixture_pack()), **EMAIL_SETTINGS)
+    meshed_nodes.start_hub(cache_pack=(tmp_path / "packs", build_nepal_pack()), **EMAIL_SETTINGS)
     _register(meshed_nodes, "s0")
     assert meshed_nodes["hub"].post("/api/replay/start").status_code == 200
 

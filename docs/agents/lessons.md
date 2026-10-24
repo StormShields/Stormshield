@@ -15,6 +15,7 @@ Loaded into every agent session, so it holds only what applies across the repo. 
 - **After editing a file by script, read `git diff --stat`**: a splice of `App.css` once duplicated 1,300 lines and every check stayed green.
 - **Windows checkouts have CRLF**: `layoutCss.test.ts` fails on them, and Python text-mode writes add CRLF (open with `newline=""`). Identity-file tests assert mode 600, which Windows cannot report; those two failing alone is expected there.
 - **The secret scan matches `sk-` plus 20 characters** not inside a word. Rename what trips it; never `--no-verify`.
+- **Some cloud agent sessions cannot reach PyPI or npm** (`uv sync` and `pnpm install` fail on the proxy, and the local caches are partial), so nothing in `scripts/check.sh` runs there. Say so, keep the PR a draft and let CI run the checks; hand-wrap any line you lengthen, since `ruff format` cannot run either.
 - **No `uv`:** another checkout's `node/.venv` works with `PYTHONPATH=src` (`check.sh` does it). **No `pnpm`:** `npx --yes pnpm@10`. Vitest needs Node 22 (its jsdom worker dies on 20). On Windows install `uv` from PowerShell; plain `venv` on Python 3.14 fails on `cryptography`.
 - **Run `mypy src tests` from `node/`**, or it stops on a duplicate `__main__`. mypy strict follows `scripts/` imports from the tests, so a script a test imports must be fully typed.
 - **Don't run `ruff format` on `scripts/*.py`**: they are not formatted by it. Write new lines at 100 columns by hand.

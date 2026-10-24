@@ -218,6 +218,8 @@ class Region(_Strict):
     shelters: list[Shelter]
     high_ground: list[HighGroundPoint] = []
     sensor_sites: list[SensorSite]
+    # Where the Region's Hub runs; the Sandbox starts its Hub here.
+    hub_site: SensorSite
     official_gauges: list[OfficialGauge] = []
     sources: Sources
 
@@ -251,6 +253,7 @@ class Region(_Strict):
                 for i, each in enumerate(self.high_ground)
             ),
             *((f"sensor_sites[{i}]", each.pos) for i, each in enumerate(self.sensor_sites)),
+            ("hub_site", self.hub_site.pos),
             *((f"official_gauges[{i}]", each.pos) for i, each in enumerate(self.official_gauges)),
         ]
         outside = [

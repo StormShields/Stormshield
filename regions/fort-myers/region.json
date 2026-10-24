@@ -197,6 +197,15 @@
       "why": "Creek above the south end of Estero Bay, on the way to Bonita Springs. Starts from USGS Ian deployment site FLLEE03292 (instrument 10849)."
     }
   ],
+  "hub_site": {
+    "id": "hub",
+    "label": "Dunbar High School",
+    "pos": [
+      26.63039,
+      -81.83423
+    ],
+    "why": "One of the Shelters Lee County opened for Hurricane Ian, about 18 ft above NAVD88, so the Hub stays dry and powered where people gather. Every sensor site is within 30 km of it."
+  },
   "official_gauges": [
     {
       "agency": "NOAA",

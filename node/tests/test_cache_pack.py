@@ -17,7 +17,7 @@ from fixture_pack import (
     SHELTERS,
     TILE,
     TILE_PATH,
-    build_fixture_pack,
+    build_nepal_pack,
 )
 
 from storm_shield.cache_pack import RELEASED_PACKS, CachePack, download_source, release_url
@@ -62,7 +62,7 @@ def _has_pack(client: TestClient) -> bool:
 
 
 def test_node_downloads_the_pack_and_serves_it_after_the_source_is_gone(tmp_path: Path) -> None:
-    source = PackSource(build_fixture_pack())
+    source = PackSource(build_nepal_pack())
     with _node(tmp_path, source.client) as node:
         _wait_until(lambda: _has_pack(node))
         source.running = False
@@ -76,7 +76,7 @@ def test_node_downloads_the_pack_and_serves_it_after_the_source_is_gone(tmp_path
 
 
 def test_node_serves_the_nepal_files_and_lists_their_sources(tmp_path: Path) -> None:
-    source = PackSource(build_fixture_pack(with_nepal=True))
+    source = PackSource(build_nepal_pack(with_nepal=True))
     with _node(tmp_path, source.client) as node:
         _wait_until(lambda: _has_pack(node))
         source.running = False
@@ -87,7 +87,7 @@ def test_node_serves_the_nepal_files_and_lists_their_sources(tmp_path: Path) -> 
 
 
 def test_a_pack_without_the_nepal_files_still_works(tmp_path: Path) -> None:
-    source = PackSource(build_fixture_pack())
+    source = PackSource(build_nepal_pack())
     with _node(tmp_path, source.client) as node:
         _wait_until(lambda: _has_pack(node))
 
@@ -99,7 +99,7 @@ def test_a_pack_without_the_nepal_files_still_works(tmp_path: Path) -> None:
 
 
 def test_a_pack_with_a_tampered_elevation_tile_is_refused(tmp_path: Path) -> None:
-    source = PackSource(build_fixture_pack(with_nepal=True, corrupt_nepal=True))
+    source = PackSource(build_nepal_pack(with_nepal=True, corrupt_nepal=True))
     with _node(tmp_path, source.client) as node:
         _wait_until(lambda: source.requests >= 1)
         time.sleep(0.2)
@@ -116,7 +116,7 @@ def test_pack_without_a_source_is_unavailable(tmp_path: Path) -> None:
 
 
 def test_corrupt_pack_is_refused_and_discarded(tmp_path: Path) -> None:
-    source = PackSource(build_fixture_pack(corrupt_tile=True))
+    source = PackSource(build_nepal_pack(corrupt_tile=True))
     with _node(tmp_path, source.client) as node:
         _wait_until(lambda: source.requests >= 1)
         time.sleep(0.2)
@@ -125,7 +125,7 @@ def test_corrupt_pack_is_refused_and_discarded(tmp_path: Path) -> None:
 
 
 def test_incomplete_pack_is_refused(tmp_path: Path) -> None:
-    source = PackSource(build_fixture_pack(leave_out_tile=True))
+    source = PackSource(build_nepal_pack(leave_out_tile=True))
     with _node(tmp_path, source.client) as node:
         _wait_until(lambda: source.requests >= 1)
         time.sleep(0.2)
@@ -133,7 +133,7 @@ def test_incomplete_pack_is_refused(tmp_path: Path) -> None:
 
 
 def test_node_with_a_pack_on_disk_never_downloads_again(tmp_path: Path) -> None:
-    source = PackSource(build_fixture_pack())
+    source = PackSource(build_nepal_pack())
     with _node(tmp_path, source.client) as first:
         _wait_until(lambda: _has_pack(first))
     requests_so_far = source.requests
@@ -145,7 +145,7 @@ def test_node_with_a_pack_on_disk_never_downloads_again(tmp_path: Path) -> None:
 
 
 def test_pack_corrupted_on_disk_is_discarded_at_startup(tmp_path: Path) -> None:
-    source = PackSource(build_fixture_pack())
+    source = PackSource(build_nepal_pack())
     with _node(tmp_path, source.client) as first:
         _wait_until(lambda: _has_pack(first))
     (tmp_path / "node" / "files" / TILE_PATH).write_bytes(b"bit rot")
@@ -156,7 +156,7 @@ def test_pack_corrupted_on_disk_is_discarded_at_startup(tmp_path: Path) -> None:
 
 
 def test_sensor_downloads_the_pack_from_a_hub_node(tmp_path: Path) -> None:
-    release = PackSource(build_fixture_pack())
+    release = PackSource(build_nepal_pack())
     with _node(tmp_path, release.client, name="hub") as hub:
         _wait_until(lambda: _has_pack(hub))
         release.running = False
@@ -171,7 +171,7 @@ def _pack_of_another_region(tmp_path: Path) -> Path:
     region = json.loads(region_path("nepal").read_text()) | {"label": "The Hub's Region"}
     directory = tmp_path / "node"
     directory.mkdir()
-    CachePack(directory).install(build_fixture_pack(region_file=json.dumps(region).encode()))
+    CachePack(directory).install(build_nepal_pack(region_file=json.dumps(region).encode()))
     return directory
 
 
@@ -189,7 +189,7 @@ def test_a_sensor_takes_its_region_from_the_pack_and_a_hub_keeps_its_own(
 def test_a_pack_with_a_bad_region_file_stops_the_sensor_that_holds_it(tmp_path: Path) -> None:
     directory = tmp_path / "node"
     directory.mkdir()
-    CachePack(directory).install(build_fixture_pack(region_file=b'{"name": "x"}'))
+    CachePack(directory).install(build_nepal_pack(region_file=b'{"name": "x"}'))
     with pytest.raises(RegionError, match="bbox"):
         create_app(Settings(cache_pack_dir=directory), InMemoryNetwork().join("node"))
 
