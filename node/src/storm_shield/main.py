@@ -24,7 +24,7 @@ from storm_shield.cache_pack import (
 from storm_shield.community_reading import CommunityReading, Position, Reading, fuzz_position
 from storm_shield.community_warning import CommunityWarning, HeardCommunityWarnings, HubWarnings
 from storm_shield.flood_email import FloodEmail
-from storm_shield.flood_risk import FloodRisk, flood_risk
+from storm_shield.flood_risk import FloodRisk, flood_risk, warning_triggers
 from storm_shield.internet_connection import (
     CONNECTIVITY_TIMEOUT_SECONDS,
     InternetConnection,
@@ -258,7 +258,7 @@ def create_app(
 
     def keep_reading(sender: str, reading: CommunityReading) -> None:
         store.record(sender, reading, clock())
-        warn_about_new_surges()
+        warn_about_new_triggers()
 
     def hear_community_reading(sender: str, message: Message) -> None:
         if isinstance(message, CommunityReading):
@@ -274,7 +274,7 @@ def create_app(
 
     heard_warnings = HeardCommunityWarnings()
     hub_warnings = HubWarnings(int(clock().timestamp())) if settings.role == "hub" else None
-    flood_email = FloodEmail.from_settings(settings)
+    flood_email = FloodEmail.from_settings(settings, region)
 
     def hear_community_warning(_: str, message: Message) -> None:
         if isinstance(message, CommunityWarning):
@@ -285,18 +285,20 @@ def create_app(
             for warning in hub_warnings.sent():
                 mesh.publish(warning)
 
-    def warn_about_new_surges() -> None:
-        """Hub only: warn about each Registered Node whose Surge has not been warned about yet."""
+    def warn_about_new_triggers() -> None:
+        """Hub only: warn about each Registered Node whose Hazard trigger has not been warned about."""
         if not hub_warnings:
             return
         snapshot = store.snapshot(clock())
-        surged = flood_risk(snapshot.recent, heard_registry.registered_ids(), rules).surged
-        river_km = {node: snapshot.recent[node][-1].river_km for node in surged}
+        triggers = warning_triggers(snapshot.recent, heard_registry.registered_ids(), rules)
         event = event_clock.current(clock())
         now = int(clock().timestamp())
-        # With no replay running the Surge happened now, on the Hub's own clock.
+        # With no replay running the trigger fired now, on the Hub's own clock.
         surge_t = now if event.state == "stopped" else event.event_t
-        for warning in hub_warnings.issue_for_new_surges(river_km, surge_t, now):
+        speedup = event.rate if event.state == "playing" else 1
+        for warning in hub_warnings.issue_for_new_triggers(
+            region.hazard, triggers, surge_t, now, speedup
+        ):
             # The Hub does not hear its own broadcasts, so it keeps the warning itself.
             heard_warnings.hear(warning)
             # A measured speed updates a warning the team was already emailed about.

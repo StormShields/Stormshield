@@ -119,6 +119,13 @@ From `docs/specs/flash-flood-replay.md`; decided by the team on 2026-10-17. The 
   { "v": 1, "kind": "warning", "id": 7, "t": 1760650928, "nodes": ["b7e1f40a92c5"],
     "reasons": ["water_surge"], "origin": "b7e1f40a92c5", "origin_km": -12.0, "surge_t": 1787716020 }
   ```
+- **Community Warning v2** (ticket #49): the Hub's Hazard picks the trigger, and the warning says which. It gains `hazard` (`flash_flood` or `storm_surge`), and on a storm surge `level_m` (the origin's water level above the Region's datum) and `rise_m_per_h` (its rise across the Region's `rising_window_s`, per hour of Event time; `null` if the readings span no time). A storm surge's `origin_km` is `null` and its reasons are `water_high` and `water_rising`; `surge_t` keeps its name and is the event time the trigger fired. Version 1 warnings are dropped.
+
+  ```json
+  { "v": 2, "kind": "warning", "id": 8, "t": 1664391903, "hazard": "storm_surge", "nodes": ["b7e1f40a92c5"],
+    "reasons": ["water_high", "water_rising"], "origin": "b7e1f40a92c5", "origin_km": null,
+    "surge_t": 1664391900, "level_m": 1.555, "rise_m_per_h": 0.427, "measured": null }
+  ```
 - **Community Warning `measured`** (optional, ticket 0050): once a second Registered Node downstream of the origin has surged, the Hub sends the same warning (same `id`) again with `"measured": { "node": "91c2e0b47a3d", "km": 1.6, "surge_t": 1787716740, "speed_kmh": 78.0 }`. `node` and `km` are the second Node and its River km, `surge_t` its Surge event time. Receivers replace their copy by `id`; it is not a new warning.
 - **Replay clock** (`kind: "replay"`), Hub only, sent on every change and every 10 s:
 

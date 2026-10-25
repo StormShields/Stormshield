@@ -11,6 +11,7 @@ import {
   type OfficialAlert,
 } from "./officialAlerts";
 import {
+  communityWarningTitle,
   measuredSpeedLine,
   OFFICIAL_SOURCE,
   warningSentence,
@@ -112,7 +113,7 @@ export function AlertsPanel({
         return (
           <article key={warning.id} className="community-warning" aria-label="Community Warning">
             <WaveEtaLine arrival={waveArrival} eventT={eventT} />
-            <p className="community-warning-tag">COMMUNITY WARNING · NOT OFFICIAL</p>
+            <p className="community-warning-tag">{communityWarningTitle(warning)}</p>
             <h3>{warningSentence(warning, nodes, thisNodeId, units)}</h3>
             {measuredLine && <p className="measured-speed">{measuredLine}</p>}
             <p>Signed by the Hub · verified</p>

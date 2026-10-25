@@ -2,7 +2,7 @@ import type { Map as MapLibreMap } from "maplibre-gl";
 import { useEffect, useRef } from "react";
 
 import { lineCollection, pointCollection, setOverlay } from "./basemap";
-import type { CommunityWarning } from "./communityWarnings";
+import type { FlashFloodWarning } from "./communityWarnings";
 import type { EventClock } from "./useEventClock";
 import type { RiverLine } from "./waveEta";
 import { waveFront } from "./waveFront";
@@ -19,7 +19,7 @@ const REDRAW_EVERY_MS = 50;
 type Props = {
   map: MapLibreMap;
   river: RiverLine | null;
-  warnings: CommunityWarning[];
+  warnings: FlashFloodWarning[];
   clock: EventClock | null;
   reducedMotion: boolean;
 };

@@ -4,7 +4,7 @@ import type { OfficialAlert } from "./officialAlerts";
 export type NodeLevel = "elevated" | "high";
 
 // What a Region's water can do; it names the Event and decides what triggers a Community Warning.
-export type Hazard = "flash_flood";
+export type Hazard = "flash_flood" | "storm_surge";
 
 export type DisplayUnits = {
   water_level: "cm" | "m" | "ft";

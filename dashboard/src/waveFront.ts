@@ -1,4 +1,4 @@
-import type { CommunityWarning } from "./communityWarnings";
+import type { FlashFloodWarning } from "./communityWarnings";
 import type { NodeOnMap } from "./nodesOnMap";
 import type { Place } from "./placeLabels";
 import type { LatLon } from "./routeGrid";
@@ -48,7 +48,7 @@ export type WaveFront = {
 // The comet on the river at `eventT`; null while no warning has started a wave.
 export function waveFront(
   river: RiverLine,
-  warnings: CommunityWarning[],
+  warnings: FlashFloodWarning[],
   eventT: number,
 ): WaveFront | null {
   const headKm = waveFrontKm(river, warnings, eventT);
@@ -63,7 +63,7 @@ export function waveFront(
 // back to their real state. A Node at or above the origin is never passed.
 export function nodesTheWavePassed(
   river: RiverLine,
-  warnings: CommunityWarning[],
+  warnings: FlashFloodWarning[],
   nodes: Pick<NodeOnMap, "id" | "riverKm">[],
   eventT: number,
 ): string[] {
@@ -80,7 +80,7 @@ export function nodesTheWavePassed(
 // replay (D-21). Only places on the river line (within the ETA's own distance) are ever reached.
 export function townsTheWaveReached(
   river: RiverLine,
-  warnings: CommunityWarning[],
+  warnings: FlashFloodWarning[],
   places: Place[],
   eventT: number,
 ): Map<string, number> {

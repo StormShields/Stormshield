@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import { BASEMAP_MANIFEST_PARTS } from "./fakeBasemap";
 
 import { App } from "./App";
-import type { CommunityWarning } from "./communityWarnings";
+import type { CommunityWarning, FlashFloodWarning } from "./communityWarnings";
 import { fakeNodeSnapshot, fakeNodeState } from "./fakeNodeState";
 import { sourceData } from "./fakeMaplibre";
 
@@ -42,10 +42,11 @@ const NEPAL_MANIFEST = {
   ...BASEMAP_MANIFEST_PARTS,
 };
 
-const WARNING: CommunityWarning = {
+const WARNING: FlashFloodWarning = {
   id: 7,
   t: SURGE_T + 3,
   nodes: ["s0"],
+  hazard: "flash_flood",
   reasons: ["water_surge"],
   origin: "s0",
   origin_km: -10,

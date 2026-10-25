@@ -10,7 +10,9 @@ import pytest
 from fixture_pack import build_nepal_pack
 from meshed_nodes import MeshedNodes
 
+from storm_shield.community_warning import CommunityWarning
 from storm_shield.flood_email import FloodEmail
+from storm_shield.region import load_region, region_path
 from storm_shield.settings import Settings
 
 LOGIN_TEXT = "app-password-1234"
@@ -154,7 +156,7 @@ def test_no_email_unless_all_three_settings_are_set(meshed_nodes: MeshedNodes, b
 def test_a_sensor_with_the_settings_sends_nothing() -> None:
     sensor = Settings(role="sensor", **EMAIL_SETTINGS)
 
-    assert FloodEmail.from_settings(sensor) is None
+    assert FloodEmail.from_settings(sensor, load_region(region_path("nepal"))) is None
 
 
 def test_a_failing_send_still_issues_the_warning_and_never_logs_the_password(
@@ -188,3 +190,31 @@ def test_a_warning_during_a_replay_has_a_loud_rehearsal_subject(
         == "*** REHEARSAL, NOT A REAL FLOOD *** ALERT OF FLOOD INCOMING!"
     )
     assert "REHEARSAL" in FakeSmtp.sent[0].get_content()
+
+
+def test_a_storm_surge_warning_emails_the_level_and_rise_in_the_regions_units_and_time() -> None:
+    hub = Settings(role="hub", **EMAIL_SETTINGS)
+    email = FloodEmail.from_settings(hub, load_region(region_path("fort-myers")))
+    assert email is not None
+    warning = CommunityWarning(
+        id=1,
+        t=1664380800,
+        hazard="storm_surge",
+        nodes=["pier"],
+        reasons=["water_high", "water_rising"],
+        origin="pier",
+        origin_km=None,
+        # 15:05 EDT on 28 Sep 2022.
+        surge_t=1664391900,
+        level_m=1.5545,
+        rise_m_per_h=0.4267,
+    )
+
+    email.send_for(warning, rehearsal=False)
+
+    _wait_until(lambda: len(FakeSmtp.sent) == 1)
+    body = FakeSmtp.sent[0].get_content()
+    assert "water at 5.1 ft, rising 1.4 ft an hour, at 15:05 EDT" in body
+    assert "storm surge" in body
+    assert "Nepal" not in body
+    assert "not an official alert" in body

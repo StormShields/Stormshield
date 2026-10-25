@@ -1,5 +1,6 @@
 import { useChimeForWarning } from "./chime";
 import {
+  communityWarningTitle,
   measuredSpeedLine,
   OFFICIAL_SOURCE,
   warningSentence,
@@ -66,7 +67,7 @@ function CommunityBody({
       <div className="takeover-wave">
         <WaveEtaLine arrival={waveArrival} eventT={eventT} />
       </div>
-      <p className="community-warning-tag">COMMUNITY WARNING · NOT OFFICIAL</p>
+      <p className="community-warning-tag">{communityWarningTitle(warning)}</p>
       <h2>{warningSentence(warning, nodes, thisNodeId, units)}</h2>
       {measuredLine && <p>{measuredLine}</p>}
       <p>Check official sources for any evacuation decision.</p>
@@ -158,7 +159,7 @@ export function WarningBanners({
         </>
       ) : (
         <>
-          <strong>COMMUNITY WARNING · NOT OFFICIAL</strong>{" "}
+          <strong>{communityWarningTitle(each.warning)}</strong>{" "}
           {warningSentence(each.warning, nodes, thisNodeId, units)}
         </>
       )}

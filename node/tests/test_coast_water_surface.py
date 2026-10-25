@@ -6,13 +6,16 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+import RNS
 from fort_myers_pack import REGION_FILE, build_fort_myers_pack
 from meshed_nodes import MeshedNodes
 from terrarium import terrarium_png
 
 from storm_shield import region
 from storm_shield.community_reading import Position
+from storm_shield.community_warning import CommunityWarning
 from storm_shield.replay import Event, SensorSpot
+from storm_shield.reticulum_mesh import SIGNATURE_LENGTH
 from storm_shield.terrain import tile_position
 
 # 06:00 EDT on 28 Sep 2022, the first moment of the fixture Event.
@@ -105,6 +108,121 @@ def test_a_shore_sensor_reports_the_water_and_one_on_high_ground_reports_none(
     )
     _wait_until(lambda: "air_pressure" in _measurements(meshed_nodes, "inland"))
     assert "water_level" not in _measurements(meshed_nodes, "inland")
+
+
+def _water_level(meshed_nodes: MeshedNodes, node: str) -> float | None:
+    value: float | None = _measurements(meshed_nodes, node).get("water_level", {}).get("value")
+    return value
+
+
+def _warning_log(meshed_nodes: MeshedNodes) -> list[dict[str, Any]]:
+    return meshed_nodes["hub"].get("/api/warnings").json()["warnings"]  # type: ignore[no-any-return]
+
+
+def _start_shore_sensor_and_play(meshed_nodes: MeshedNodes, pack: tuple[Path, bytes]) -> None:
+    _start_sensors(meshed_nodes, pack, shore=SHORE)
+    assert meshed_nodes["shore"].post("/api/registry/signup").status_code == 200
+    _wait_until(
+        lambda: (
+            meshed_nodes["hub"].post("/api/registry/accept", json={"id": "shore"}).status_code
+            == 200
+        )
+    )
+    assert meshed_nodes["hub"].post("/api/replay/start").status_code == 200
+
+
+def _set_warning_height(tmp_path: Path, feet: float) -> None:
+    region_file = tmp_path / "regions" / "fort-myers" / "region.json"
+    raw = json.loads(region_file.read_text())
+    raw["rules"]["flood_warning"]["storm_surge"]["warning_height"] = {"value": feet, "unit": "ft"}
+    region_file.write_text(json.dumps(raw))
+
+
+def test_a_registered_shore_sensor_passing_the_warning_height_while_rising_fires_one_warning(
+    meshed_nodes: MeshedNodes, coast_pack: tuple[Path, bytes]
+) -> None:
+    _start_shore_sensor_and_play(meshed_nodes, coast_pack)
+    # Half an hour into the Event the shore's 0.733 m is still below the Region's 3 ft.
+    meshed_nodes.advance(60)
+    _wait_until(lambda: _water_level(meshed_nodes, "shore") == 0.733)
+    assert _warning_log(meshed_nodes) == []
+
+    # An hour in, 1.067 m and rising 2 m in three hours.
+    meshed_nodes.advance(60)
+    _wait_until(lambda: len(_warning_log(meshed_nodes)) == 1)
+    warning = _warning_log(meshed_nodes)[0]
+    assert warning["hazard"] == "storm_surge"
+    assert warning["origin"] == "shore"
+    assert warning["origin_km"] is None
+    assert warning["level_m"] == 1.067
+    assert warning["rise_m_per_h"] == pytest.approx(0.667, abs=0.001)
+    assert warning["surge_t"] == EVENT_START + 3600
+
+    # Still above and still rising: the same warning holds.
+    meshed_nodes.advance(30)
+    _wait_until(lambda: _water_level(meshed_nodes, "shore") == 1.233)
+    assert len(_warning_log(meshed_nodes)) == 1
+
+
+def test_a_higher_warning_height_fires_later(
+    meshed_nodes: MeshedNodes, coast_pack: tuple[Path, bytes], tmp_path: Path
+) -> None:
+    _set_warning_height(tmp_path, 5)
+    _start_shore_sensor_and_play(meshed_nodes, coast_pack)
+    meshed_nodes.advance(120)
+    _wait_until(lambda: _water_level(meshed_nodes, "shore") == 1.067)
+    assert _warning_log(meshed_nodes) == []
+
+    # Two hours in, 1.733 m: past 5 ft (1.524 m).
+    meshed_nodes.advance(120)
+    _wait_until(lambda: len(_warning_log(meshed_nodes)) == 1)
+    assert _warning_log(meshed_nodes)[0]["level_m"] == 1.733
+
+
+def test_an_unverified_shore_sensor_never_fires_the_storm_surge_warning(
+    meshed_nodes: MeshedNodes, coast_pack: tuple[Path, bytes]
+) -> None:
+    _start_sensors(meshed_nodes, coast_pack, shore=SHORE)
+    assert meshed_nodes["hub"].post("/api/replay/start").status_code == 200
+    meshed_nodes.advance(120)
+    _wait_until(lambda: _water_level(meshed_nodes, "shore") == 1.067)
+
+    assert _warning_log(meshed_nodes) == []
+
+
+def test_water_standing_above_the_warning_height_fires_nothing_until_it_rises(
+    meshed_nodes: MeshedNodes, coast_pack: tuple[Path, bytes]
+) -> None:
+    meshed_nodes.start_hub(coast_pack, region="fort-myers")
+    meshed_nodes.announce_sign_up("pier", "pier")
+    assert meshed_nodes["hub"].post("/api/registry/accept", json={"id": "pier"}).status_code == 200
+    # A high tide that has turned: 1.2 m, above the Region's 3 ft, and not rising.
+    meshed_nodes.hear_from("pier", water_cm=120)
+    meshed_nodes.advance(60)
+    meshed_nodes.hear_from("pier", water_cm=120)
+    assert _warning_log(meshed_nodes) == []
+
+    meshed_nodes.advance(60)
+    meshed_nodes.hear_from("pier", water_cm=140)
+    assert [w["origin"] for w in _warning_log(meshed_nodes)] == ["pier"]
+
+
+def test_the_storm_surge_warning_fits_one_reticulum_packet(
+    meshed_nodes: MeshedNodes, coast_pack: tuple[Path, bytes]
+) -> None:
+    _start_shore_sensor_and_play(meshed_nodes, coast_pack)
+    meshed_nodes.advance(120)
+    _wait_until(lambda: len(_warning_log(meshed_nodes)) == 1)
+    # As a real Node's 12-character id would make it, with every number at full length.
+    longest = CommunityWarning.model_validate(_warning_log(meshed_nodes)[0]).model_copy(
+        update={
+            "nodes": ["b7e1f40a92c5"],
+            "origin": "b7e1f40a92c5",
+            "level_m": -1234.567,
+            "rise_m_per_h": -1234.567,
+        }
+    )
+    assert SIGNATURE_LENGTH + len(longest.model_dump_json().encode()) <= RNS.Packet.PLAIN_MDU
 
 
 def test_a_spot_turns_wet_once_the_water_passes_its_ground(

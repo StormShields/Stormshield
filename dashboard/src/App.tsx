@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 
 import { AlertsPanel } from "./AlertsPanel";
-import { firstSurgeAt } from "./communityWarnings";
+import { firstSurgeAt, flashFloodWarnings } from "./communityWarnings";
 import { EvacuationPlanPanel } from "./EvacuationPlanPanel";
 import { evacuationPlan } from "./evacuationPlan";
 import { HouseholdPanel } from "./HouseholdPanel";
@@ -110,21 +110,22 @@ export function App() {
   // Wi-Fi drop is worse than showing one a few seconds old.
   const officialAlerts = lastAnswer?.state.official_alerts ?? [];
   const communityWarnings = lastAnswer?.state.community_warnings ?? [];
+  const riverWarnings = flashFloodWarnings(communityWarnings);
   const eventNow = eventClock.clock?.event_t ?? null;
   const waterReaches =
-    river && eventNow !== null ? waterReachesAt(river, communityWarnings, nodes, eventNow) : [];
+    river && eventNow !== null ? waterReachesAt(river, riverWarnings, nodes, eventNow) : [];
   // The home never leaves the device: the profile's, or else where the connected Node sits.
   const thisNode = lastAnswer?.state.nodes.find((node) => node.id === lastAnswer.state.id);
   const waveHome: Home | null =
     shownProfile?.home ??
     (thisNode ? { lat: thisNode.position[0], lon: thisNode.position[1] } : null);
   const eventT = eventClock.clock?.event_t ?? null;
-  const arrival = river && waveHome && waveArrival(river, waveHome, communityWarnings);
+  const arrival = river && waveHome && waveArrival(river, waveHome, riverWarnings);
   const planWave =
     arrival && arrival.kind === "expected" && eventT !== null
       ? { arrivalAt: arrival.at, eventT }
       : null;
-  const waveKm = river && eventT !== null ? waveFrontKm(river, communityWarnings, eventT) : null;
+  const waveKm = river && eventT !== null ? waveFrontKm(river, riverWarnings, eventT) : null;
   const [acknowledged, acknowledge] = useAcknowledgedWarnings();
   const plan = evacuationPlan({
     profile: shownProfile,
@@ -374,7 +375,7 @@ export function App() {
             basemap={cachePack?.basemap ?? null}
             places={places}
             river={river}
-            warnings={communityWarnings}
+            warnings={riverWarnings}
             warningFocus={warningFocus}
             clock={eventClock.clock}
             shelter={plan.shelter}

@@ -4,6 +4,7 @@ import {
   measuredSpeedLine,
   reasonsSentence,
   riverKm,
+  stormSurgeLevel,
   type CommunityWarning,
 } from "./communityWarnings";
 import { useRegion } from "./RegionContext";
@@ -28,7 +29,13 @@ export function WarningsTab({
         <span className="empty-panel-icon">
           <TriangleAlert size={20} aria-hidden="true" />
         </span>
-        <p>No Community Warning sent yet. One goes out when a Registered Node reports a Surge.</p>
+        <p>
+          No Community Warning sent yet. One goes out when a Registered Node{" "}
+          {region?.water_type === "coast"
+            ? "reports water past the warning height and rising"
+            : "reports a sudden rise in the river"}
+          .
+        </p>
       </div>
     );
   }
@@ -38,13 +45,20 @@ export function WarningsTab({
         {log.warnings.map((warning) => {
           const nameOf = (id: string) => registry?.nodes.find((row) => row.id === id)?.name ?? id;
           const name = nameOf(warning.origin);
-          const measuredLine = measuredSpeedLine(warning, nameOf, region?.display_units ?? null);
+          const units = region?.display_units ?? null;
+          const measuredLine = measuredSpeedLine(warning, nameOf, units);
           return (
             <li key={warning.id}>
               <strong>{region && regionClockTime(warning.surge_t, region.time_zone)}</strong>
               <span>{name}</span>
-              <span>{riverKm(warning.origin_km)}</span>
-              <span>{reasonsSentence(warning)}</span>
+              {warning.hazard === "storm_surge" ? (
+                <span>Water is {stormSurgeLevel(warning, units)}</span>
+              ) : (
+                <>
+                  <span>{riverKm(warning.origin_km)}</span>
+                  <span>{reasonsSentence(warning)}</span>
+                </>
+              )}
               {measuredLine && <span>{measuredLine}</span>}
             </li>
           );
