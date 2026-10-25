@@ -111,6 +111,12 @@ export function ReadingsPanel({
               </ReadingSlot>
             </li>
           ))}
+        {/* On a coast a simulated Sensor whose ground is above the water sends no level, not zero;
+            a real one without a level may simply have no water gauge. */}
+        {region?.water_type === "coast" &&
+          node.simulated &&
+          node.measurements.length > 0 &&
+          node.waterLevelCm === null && <li className="dry">{kindLabel("water_level")}: dry</li>}
       </ul>
     </section>
   );

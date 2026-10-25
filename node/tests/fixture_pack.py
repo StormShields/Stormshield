@@ -4,6 +4,9 @@ import json
 import zipfile
 from typing import Any
 
+from storm_shield.region import load_region, region_path
+from storm_shield.replay import Event, load_events
+
 SHELTERS = [
     {
         "id": "test-gym",
@@ -100,3 +103,8 @@ def build_nepal_pack(
         for path, content in files.items():
             archive.writestr(path, content)
     return buffer.getvalue()
+
+
+def nepal_event() -> Event:
+    """The Nepal Region's first Event: the one a stopped Node reads."""
+    return next(iter(load_events(load_region(region_path("nepal"))).values()))

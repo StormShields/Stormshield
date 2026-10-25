@@ -94,6 +94,11 @@ class FloodWarningRules(_Strict):
     storm_pressure: Pressure
     soil_rising_points: float = Field(gt=0)
 
+    @property
+    def water_levels(self) -> FlashFlood:
+        """The Hazard's thresholds, whose levels and rise every Hazard has."""
+        return self.flash_flood
+
 
 class CoastFloodWarningRules(_Strict):
     """What the flood-warning Rule set reads from a coast Region."""
@@ -104,9 +109,17 @@ class CoastFloodWarningRules(_Strict):
     storm_pressure: Pressure
     soil_rising_points: float = Field(gt=0)
 
+    @property
+    def water_levels(self) -> StormSurge:
+        """The Hazard's thresholds, whose levels and rise every Hazard has."""
+        return self.storm_surge
+
+
+FloodWarning = FloodWarningRules | CoastFloodWarningRules
+
 
 class Rules(_Strict):
-    flood_warning: FloodWarningRules | CoastFloodWarningRules
+    flood_warning: FloodWarning
 
 
 class DisplayUnits(_Strict):
@@ -324,6 +337,11 @@ def load_region(path: Path) -> Region:
 
 def region_path(name: str) -> Path:
     return REGIONS_DIR / name / "region.json"
+
+
+def events_dir(name: str) -> Path:
+    """The Region's hand-written and built Event files, which the build and every Node read."""
+    return REGIONS_DIR / name / "events"
 
 
 def describe_problems(error: ValidationError) -> str:

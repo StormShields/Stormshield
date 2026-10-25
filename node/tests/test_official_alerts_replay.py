@@ -2,11 +2,11 @@ import time
 from collections.abc import Callable
 
 import RNS
+from fixture_pack import nepal_event
 from meshed_nodes import MeshedNodes
 
 from storm_shield.official_alert import HEADLINE_MAX_LENGTH, OfficialAlert
 from storm_shield.region import ALERT_TAG_MAX_LENGTH
-from storm_shield.replay import load_event
 from storm_shield.reticulum_mesh import SIGNATURE_LENGTH
 
 # 08:30 NPT on 26 Aug 2026, the first moment of the replay timeline; 1 s of real time is 30 s.
@@ -98,7 +98,7 @@ def test_a_node_that_joins_late_gets_the_alerts_already_sent(meshed_nodes: Meshe
 def test_an_official_alert_not_from_the_hub_is_ignored(meshed_nodes: MeshedNodes) -> None:
     meshed_nodes.start("porch")
     meshed_nodes.announce_replay("playing", REPLAY_START + 3 * 3600)
-    forged = load_event().official_alerts_due(REPLAY_START + 3 * 3600)[0]
+    forged = nepal_event().official_alerts_due(REPLAY_START + 3 * 3600)[0]
     meshed_nodes.announce_official_alert(forged, sender="intruder")
     assert _alerts(meshed_nodes, "porch") == []
     meshed_nodes.announce_official_alert(forged)
@@ -106,7 +106,7 @@ def test_an_official_alert_not_from_the_hub_is_ignored(meshed_nodes: MeshedNodes
 
 
 def test_the_replayed_alerts_keep_their_real_times_and_source_links() -> None:
-    alerts = load_event().official_alerts_due(REPLAY_START + 3 * 3600)
+    alerts = nepal_event().official_alerts_due(REPLAY_START + 3 * 3600)
     assert [(alert.issued[11:16], alert.source) for alert in alerts] == [
         ("09:05", "dhm"),
         ("09:15", "dhm"),
@@ -116,7 +116,7 @@ def test_the_replayed_alerts_keep_their_real_times_and_source_links() -> None:
 
 
 def test_the_longest_alert_the_region_allows_fits_one_reticulum_packet() -> None:
-    alert = load_event().official_alerts_due(REPLAY_START + 3 * 3600)[0]
+    alert = nepal_event().official_alerts_due(REPLAY_START + 3 * 3600)[0]
     longest = alert.model_copy(
         update={"source": "x" * ALERT_TAG_MAX_LENGTH, "headline": "h" * HEADLINE_MAX_LENGTH}
     )
@@ -124,7 +124,7 @@ def test_the_longest_alert_the_region_allows_fits_one_reticulum_packet() -> None
 
 
 def test_every_replayed_alert_fits_one_reticulum_packet() -> None:
-    alerts: list[OfficialAlert] = load_event().official_alerts_due(REPLAY_START + 3 * 3600)
+    alerts: list[OfficialAlert] = nepal_event().official_alerts_due(REPLAY_START + 3 * 3600)
     for alert in alerts:
         signed_bytes = SIGNATURE_LENGTH + len(alert.model_dump_json().encode())
         assert signed_bytes <= RNS.Packet.PLAIN_MDU, alert.id

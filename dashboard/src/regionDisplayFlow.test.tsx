@@ -98,3 +98,48 @@ test("a Community Warning gives its distance in miles for a Fort Myers Region", 
     within(card).getByText("Water is surging at Bay, 7.6 mi upstream of this Node"),
   ).toBeVisible();
 });
+
+test("a coast Sensor that sends no water level reads as dry", async () => {
+  stubNode(
+    fakeNodeState({
+      region: FORT_MYERS_REGION,
+      nodes: [
+        fakeNodeSnapshot("inland", { measurements: { air_pressure: { value: 990, unit: "hPa" } } }),
+      ],
+    }),
+  );
+  render(<App />);
+  const card = await screen.findByRole("region", { name: "Node inland" });
+  expect(within(card).getByText("Water level: dry")).toBeInTheDocument();
+});
+
+test("a real coast Sensor with no water level is not called dry, since it may have no gauge", async () => {
+  stubNode(
+    fakeNodeState({
+      region: FORT_MYERS_REGION,
+      nodes: [
+        fakeNodeSnapshot("pi", {
+          simulated: false,
+          measurements: { air_pressure: { value: 990, unit: "hPa" } },
+        }),
+      ],
+    }),
+  );
+  render(<App />);
+  const card = await screen.findByRole("region", { name: /Node pi/ });
+  expect(within(card).queryByText(/dry/)).not.toBeInTheDocument();
+});
+
+test("a river Sensor off the river does not claim to be dry", async () => {
+  stubNode(
+    fakeNodeState({
+      region: FAKE_REGION,
+      nodes: [
+        fakeNodeSnapshot("porch", { measurements: { air_pressure: { value: 990, unit: "hPa" } } }),
+      ],
+    }),
+  );
+  render(<App />);
+  const card = await screen.findByRole("region", { name: "Node porch" });
+  expect(within(card).queryByText(/dry/)).not.toBeInTheDocument();
+});

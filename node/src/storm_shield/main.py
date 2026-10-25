@@ -1,6 +1,8 @@
 import asyncio
 import logging
+import struct
 import threading
+import zlib
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
@@ -19,7 +21,7 @@ from storm_shield.cache_pack import (
     CachePack,
     download_source,
 )
-from storm_shield.community_reading import CommunityReading, Reading, fuzz_position
+from storm_shield.community_reading import CommunityReading, Position, Reading, fuzz_position
 from storm_shield.community_warning import CommunityWarning, HeardCommunityWarnings, HubWarnings
 from storm_shield.flood_email import FloodEmail
 from storm_shield.flood_risk import FloodRisk, flood_risk
@@ -45,15 +47,14 @@ from storm_shield.official_alert import HeardOfficialAlerts, OfficialAlert
 from storm_shield.reading_publisher import ReadingPublisher
 from storm_shield.reading_store import NodeSnapshot, ReadingStore
 from storm_shield.region import (
-    CoastFloodWarningRules,
+    Coast,
     Hazard,
     Region,
-    RegionError,
     RegionSummary,
     load_region,
     region_path,
 )
-from storm_shield.replay import Event, EventClock, ReplayClockMessage, load_events
+from storm_shield.replay import Event, EventClock, ReplayClockMessage, SensorSpot, load_events
 from storm_shield.reticulum_mesh import ReticulumMesh
 from storm_shield.sandbox_api import (
     RadioRange,
@@ -70,6 +71,7 @@ from storm_shield.shelter_status import (
     ShelterStatus,
     UnknownShelter,
 )
+from storm_shield.terrain import elevation_at
 from storm_shield.timing import REPLAY_PUBLISH_EVERY_SECONDS
 from storm_shield.weather_forecast import FORECAST_TIMEOUT_SECONDS, WeatherForecast
 
@@ -188,10 +190,6 @@ def create_app(
     cache_pack = CachePack(settings.cache_pack_dir)
     region = region or _region_of(settings, cache_pack)
     rules = region.rules.flood_warning
-    if isinstance(rules, CoastFloodWarningRules):
-        raise RegionError(
-            f"{region.label} is a coast Region, and the Node does not read storm-surge rules yet"
-        )
     weather_forecast = WeatherForecast(settings.data_dir, region.bbox)
     weather_source = weather_source or httpx.Client(
         timeout=FORECAST_TIMEOUT_SECONDS, follow_redirects=True
@@ -205,10 +203,8 @@ def create_app(
     )
     # httpx logs every request URL at INFO, and a tile URL carries the CARTO key.
     logging.getLogger("httpx").setLevel(logging.WARNING)
-    store = ReadingStore(rules.flash_flood.rising_window_s)
-    events = load_events()
-    for each in events.values():
-        each.require_alert_sources_of(region)
+    store = ReadingStore(rules.water_levels.rising_window_s)
+    events = load_events(region)
     first_event = next(iter(events.values()))
     event_clock = EventClock(first_event.id)
 
@@ -217,6 +213,30 @@ def create_app(
         return events.get(event_clock.current(clock()).event, first_event)
 
     measured_kinds = {kind.strip() for kind in settings.measures.split(",") if kind.strip()}
+    # Read once per spot and pack, not at every share; a new pack or a Sandbox move reads again.
+    ground_heights: dict[Position, float | None] = {}
+    ground_heights_pack: list[object] = [None]
+
+    def tile(path: str) -> bytes | None:
+        found = cache_pack.file(path)
+        return found.read_bytes() if found else None
+
+    def ground_m() -> float | None:
+        """This Node's ground height above the coast datum, from its pack's terrain."""
+        if not isinstance(region.water, Coast):
+            return None
+        if ground_heights_pack[0] is not cache_pack.manifest:
+            ground_heights.clear()
+            ground_heights_pack[0] = cache_pack.manifest
+        spot = Position(settings.latitude, settings.longitude)
+        if spot not in ground_heights:
+            try:
+                ground_heights[spot] = elevation_at(tile, spot.latitude, spot.longitude)
+            except (ValueError, OSError, zlib.error, struct.error) as error:
+                # Until a pack with readable terrain arrives, the Node reads its spot as dry.
+                logger.warning("no ground height at %s (%s); reading the spot as dry", spot, error)
+                ground_heights[spot] = None
+        return ground_heights[spot]
 
     def own_measurements() -> list[Reading] | None:
         """What this Node reads from the Event's surface at its own position.
@@ -230,7 +250,10 @@ def create_app(
             event_t = event.start_unix
         else:
             event_t = heard.event_t
-        readings = event.readings_at(settings.river_km, event_t, clock())
+        spot = SensorSpot(
+            Position(settings.latitude, settings.longitude), settings.river_km, ground_m()
+        )
+        readings = event.readings_at(spot, event_t, clock())
         return [r for r in readings if r.kind in measured_kinds] or None
 
     def keep_reading(sender: str, reading: CommunityReading) -> None:

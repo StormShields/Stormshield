@@ -127,7 +127,7 @@ From `docs/specs/flash-flood-replay.md`; decided by the team on 2026-10-17. The 
   ```
 
   `event` is the id of the Event every Node plays; a Node that does not hold that Event reads its own first moment. `state` is `playing`, `paused` or `stopped`. `event_t` is the event time when the message was sent; a receiver anchors it on its own clock at receipt, like reading age.
-- **Node API (until `/api/state`, 0019, carries it):** `GET /api/replay` returns the Event clock as this Node counts it (`state`, `event_t` now, `rate`), and on the Hub `POST /api/replay/start` starts the replay from 08:30 and announces it. Every Sensor reads the Event's water surface at its own River km (a Sensor outside the corridor sends no `water_level`) while the clock is `playing` or `paused`, and the Event's first moment while it is `stopped`.
+- **Node API (until `/api/state`, 0019, carries it):** `GET /api/replay` returns the Event clock as this Node counts it (`state`, `event_t` now, `rate`), and on the Hub `POST /api/replay/start` starts the replay from 08:30 and announces it. Every Sensor reads the Event's water surface at its own spot: its River km on a river (a Sensor outside the corridor sends no `water_level`), its position and ground height on a coast (a Sensor on ground above the water sends no `water_level`) while the clock is `playing` or `paused`, and the Event's first moment while it is `stopped`.
 - **Official Alert** `source` gains `dhm`, `ndrrma` and `district`.
 - **Cache Pack** gains `river.geojson`: the river line with River km along it and a wave speed (km/h) for each reach.
 

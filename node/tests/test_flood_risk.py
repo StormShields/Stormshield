@@ -4,11 +4,11 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from fixture_pack import nepal_event
 from meshed_nodes import MeshedNodes
 
 from storm_shield.community_reading import Measurement
 from storm_shield.region import load_region, region_path
-from storm_shield.replay import load_event
 
 # A storm in three steps, as (pressure hPa, rain mm/h, water cm, soil %). The last is High from
 # heavy rain on rising water and stays under the Surge size.
@@ -316,7 +316,7 @@ def test_the_replays_calm_phase_is_low_with_no_storm_signal(meshed_nodes: Meshed
 
 
 def test_no_weather_keyframe_is_below_the_storm_signal_pressure() -> None:
-    lowest = min(keyframe.pressure_hpa for keyframe in load_event().weather)
+    lowest = min(keyframe.pressure_hpa for keyframe in nepal_event().weather)
     region = load_region(region_path("nepal"))
     assert lowest >= region.rules.flood_warning.storm_pressure.hpa
 

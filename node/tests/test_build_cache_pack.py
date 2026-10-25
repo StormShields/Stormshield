@@ -18,6 +18,7 @@ from pack_routes import FloodProneArea, Point, Roads
 from pack_sources import SourceFailed
 from terrarium import terrarium_png
 
+from storm_shield import terrain
 from storm_shield.region import RegionError, region_path
 from storm_shield.weather_grid import grid_points
 
@@ -77,10 +78,10 @@ def _write_terrain(
 ) -> None:
     """One Terrarium tile per tile of the box at every zoom; `height_of_tile` is given a test for
     whether the tile holds a point and answers the tile's height in metres."""
-    for zoom, x, y in pack_terrain.tiles_covering(BBOX, pack_terrain.ZOOMS):
+    for zoom, x, y in pack_terrain.tiles_covering(BBOX, terrain.ZOOMS):
 
         def holds(point: Point, zoom: int = zoom, x: int = x, y: int = y) -> bool:
-            point_x, point_y = pack_terrain.tile_position(*point, zoom)
+            point_x, point_y = terrain.tile_position(*point, zoom)
             return (x, y) == (int(point_x), int(point_y))
 
         tile = region_dir / "sources" / "terrain" / str(zoom) / str(x) / f"{y}.png"

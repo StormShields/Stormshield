@@ -6,7 +6,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 from storm_shield.community_reading import CommunityReading
-from storm_shield.region import FloodWarningRules
+from storm_shield.region import FlashFlood, FloodWarning
 
 # The unit each kind this Rule set reads is sent in. Any other kind is ignored; a known kind in
 # another unit is ignored too, since reading its number as if it were in this unit would be wrong.
@@ -54,7 +54,7 @@ class _NodeView:
     A kind the Node never sent is None (or no gain), so it takes no part in any rule.
     """
 
-    rules: FloodWarningRules
+    rules: FloodWarning
     water_cm: float | None
     water_gain_cm: float
     surge_rise_cm: float
@@ -64,19 +64,18 @@ class _NodeView:
     pressure_hpa: float | None
 
     @classmethod
-    def of(
-        cls, node: str, readings: list[CommunityReading], rules: FloodWarningRules
-    ) -> "_NodeView":
+    def of(cls, node: str, readings: list[CommunityReading], rules: FloodWarning) -> "_NodeView":
         water = _series(node, readings, WATER_LEVEL, WATER_UNIT)
         rain = _series(node, readings, RAIN_RATE, RAIN_UNIT)
         soil = _series(node, readings, SOIL_MOISTURE, SOIL_UNIT)
         pressure = _series(node, readings, AIR_PRESSURE, AIR_PRESSURE_UNIT)
         newest_water_t, newest_water = water[-1] if water else (0, 0.0)
-        # The Surge window counts in the sender's own timestamps, so a slow rise cannot pass for
-        # one just because its readings arrived together.
-        in_surge_window = [
-            w for w in water if newest_water_t - w[0] <= rules.flash_flood.surge_window_s
-        ]
+        # Only a flash flood has a Surge. Its window counts in the sender's own timestamps, so a
+        # slow rise cannot pass for one just because its readings arrived together.
+        surge_window_s = (
+            rules.water_levels.surge_window_s if isinstance(rules.water_levels, FlashFlood) else 0
+        )
+        in_surge_window = [w for w in water if newest_water_t - w[0] <= surge_window_s]
         lowest_t, lowest = min(in_surge_window, key=lambda w: w[1], default=(0, 0.0))
         # With a single reading there is no trend, so nothing is rising.
         return cls(
@@ -92,11 +91,12 @@ class _NodeView:
 
     @property
     def surging(self) -> bool:
-        return self.surge_rise_cm >= self.rules.flash_flood.surge_rise.cm
+        levels = self.rules.water_levels
+        return isinstance(levels, FlashFlood) and self.surge_rise_cm >= levels.surge_rise.cm
 
     @property
     def water_rising(self) -> bool:
-        return self.water_gain_cm >= self.rules.flash_flood.rising.cm
+        return self.water_gain_cm >= self.rules.water_levels.rising.cm
 
     @property
     def soil_rising(self) -> bool:
@@ -104,14 +104,14 @@ class _NodeView:
 
     @property
     def level(self) -> NodeLevel | None:
-        flash_flood = self.rules.flash_flood
+        levels = self.rules.water_levels
         if (
             self.surging
-            or _reaches(self.water_cm, flash_flood.high_level.cm)
+            or _reaches(self.water_cm, levels.high_level.cm)
             or (_reaches(self.rain_mmh, self.rules.rain_high.mm_per_hour) and self.water_rising)
         ):
             return "high"
-        if _reaches(self.water_cm, flash_flood.elevated_level.cm) or _reaches(
+        if _reaches(self.water_cm, levels.elevated_level.cm) or _reaches(
             self.rain_mmh, self.rules.rain_elevated.mm_per_hour
         ):
             return "elevated"
@@ -148,7 +148,7 @@ def _series(
 def flood_risk(
     recent: dict[str, list[CommunityReading]],
     registered_ids: Collection[str],
-    rules: FloodWarningRules,
+    rules: FloodWarning,
 ) -> FloodRisk:
     """Flood Risk for everything this Node can see, from each counted Node's recent readings."""
     views = {
@@ -182,7 +182,7 @@ def flood_risk(
                 [
                     v.water_cm
                     for v in views.values()
-                    if v.water_cm is not None and v.water_cm >= rules.flash_flood.elevated_level.cm
+                    if v.water_cm is not None and v.water_cm >= rules.water_levels.elevated_level.cm
                 ],
             ),
             _reason(
