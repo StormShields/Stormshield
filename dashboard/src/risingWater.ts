@@ -1,4 +1,4 @@
-import type { CommunityWarning } from "./communityWarnings";
+import type { FlashFloodWarning } from "./communityWarnings";
 import type { NodeOnMap } from "./nodesOnMap";
 import type { LatLon } from "./routeGrid";
 import { pointAtKm } from "./waveFront";
@@ -72,7 +72,7 @@ function reachOf(river: RiverLine, riverKm: number, levelM: number): WaterReach 
 // the peak it saw. Nothing is drawn before a warning has started a wave.
 export function waterReaches(
   river: RiverLine,
-  warnings: CommunityWarning[],
+  warnings: FlashFloodWarning[],
   nodes: Pick<NodeOnMap, "riverKm" | "waterLevelCm">[],
   eventT: number,
 ): WaterReach[] {

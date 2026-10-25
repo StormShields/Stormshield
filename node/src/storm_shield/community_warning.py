@@ -5,6 +5,9 @@ from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel
 
+from storm_shield.flood_risk import WarningTrigger
+from storm_shield.region import Hazard
+
 if TYPE_CHECKING:
     from storm_shield.replay import ReplayClockMessage
 
@@ -37,16 +40,24 @@ class CommunityWarning(BaseModel):
     sources are fixed dashboard text that no message can drop or reword.
     """
 
-    v: Literal[1] = 1
+    v: Literal[2] = 2
     kind: Literal["warning"] = "warning"
     # Counts up on the Hub; a Node tells a repeat from a new warning by it.
     id: int
     t: int
+    # Picks the trigger and the title the dashboard shows.
+    hazard: Hazard
     nodes: list[str]
     reasons: list[WarningReason]
     origin: str
-    origin_km: float
+    # The origin's River km on a flash flood; a coast has no river.
+    origin_km: float | None
+    # Event time the trigger fired; named when a Surge was the only trigger.
     surge_t: int
+    # A storm surge's level and rate of rise at the origin, from which each Viewer works out its
+    # own Water ETA. The rate is per hour of Event time.
+    level_m: float | None = None
+    rise_m_per_h: float | None = None
     # Set by a repeat of the same warning (same id) once a second Node has surged downstream.
     measured: MeasuredSpeed | None = None
 
@@ -62,50 +73,68 @@ class HubWarnings:
         self._unplaced: set[str] = set()
         self._sent: list[CommunityWarning] = []
 
-    def issue_for_new_surges(
-        self, surging_km: Mapping[str, float | None], surge_t: int, now: int
+    def issue_for_new_triggers(
+        self,
+        hazard: Hazard,
+        triggers: Mapping[str, WarningTrigger],
+        surge_t: int,
+        now: int,
+        event_seconds_per_second: float,
     ) -> list[CommunityWarning]:
-        """One warning for each Node in `surging_km` (id to River km) not already warned about.
+        """One warning for each Node in `triggers` not already warned about.
 
-        A Node is forgotten once it stops surging, so a second Surge from it warns again. A Node
-        with no River km cannot be placed on the river, so it gets no warning, and a log line once.
-        A Node that surges below, and after, a warning with no measurement yet does not get a
-        warning of its own: that warning is returned again (same id) with the measured speed.
+        A Node is forgotten once its trigger stops holding, so a second one warns again.
+
+        On a flash flood, a Node with no River km cannot be placed on the river, so it gets no
+        warning, and a log line once. A Node that surges below, and after, a warning with no
+        measurement yet does not get a warning of its own: that warning is returned again (same
+        id) with the measured speed. A storm surge carries the origin's level and rate of rise
+        instead, the rate turned from the sender's clock into Event time by
+        `event_seconds_per_second`.
         """
         with self._lock:
-            self._warned &= surging_km.keys()
-            self._unplaced &= surging_km.keys()
+            self._warned &= triggers.keys()
+            self._unplaced &= triggers.keys()
             issued: list[CommunityWarning] = []
-            for node, river_km in sorted(surging_km.items()):
-                if river_km is None:
+            for node, trigger in sorted(triggers.items()):
+                if node in self._warned:
+                    continue
+                if hazard == "storm_surge":
+                    warning = self._new_warning(hazard, node, None, surge_t, now).model_copy(
+                        update=_level_and_rise(trigger, event_seconds_per_second)
+                    )
+                elif trigger.river_km is None:
                     if node not in self._unplaced:
                         logger.warning("Node %s is surging but has no NODE_RIVER_KM", node)
                         self._unplaced.add(node)
                     continue
-                if node in self._warned:
-                    continue
-                found = self._measure_with(node, river_km, surge_t)
-                if found is not None:
+                elif found := self._measure_with(node, trigger.river_km, surge_t):
                     index, update = found
                     self._sent[index] = update
                     issued.append(update)
                     self._warned.add(node)
                     continue
-                issued.append(
-                    CommunityWarning(
-                        id=self._next_id,
-                        t=now,
-                        nodes=[node],
-                        reasons=["water_surge"],
-                        origin=node,
-                        origin_km=river_km,
-                        surge_t=surge_t,
-                    )
-                )
-                self._sent.append(issued[-1])
+                else:
+                    warning = self._new_warning(hazard, node, trigger.river_km, surge_t, now)
+                issued.append(warning)
+                self._sent.append(warning)
                 self._next_id += 1
                 self._warned.add(node)
             return issued
+
+    def _new_warning(
+        self, hazard: Hazard, node: str, river_km: float | None, surge_t: int, now: int
+    ) -> CommunityWarning:
+        return CommunityWarning(
+            id=self._next_id,
+            t=now,
+            hazard=hazard,
+            nodes=[node],
+            reasons=["water_surge"] if hazard == "flash_flood" else ["water_high", "water_rising"],
+            origin=node,
+            origin_km=river_km,
+            surge_t=surge_t,
+        )
 
     def _measure_with(
         self, node: str, river_km: float, surge_t: int
@@ -116,7 +145,7 @@ class HubWarnings:
         """
         for index in range(len(self._sent) - 1, -1, -1):
             warning = self._sent[index]
-            if warning.measured is not None:
+            if warning.measured is not None or warning.origin_km is None:
                 continue
             hours = (surge_t - warning.surge_t) / SECONDS_PER_HOUR
             distance_km = river_km - warning.origin_km
@@ -135,6 +164,16 @@ class HubWarnings:
         """Every warning sent since this Hub started, newest first."""
         with self._lock:
             return self._sent[::-1]
+
+
+def _level_and_rise(
+    trigger: WarningTrigger, event_seconds_per_second: float
+) -> dict[str, float | None]:
+    event_hours = trigger.rise_seconds * event_seconds_per_second / SECONDS_PER_HOUR
+    return {
+        "level_m": None if trigger.level_m is None else round(trigger.level_m, 3),
+        "rise_m_per_h": round(trigger.rise_m / event_hours, 3) if event_hours > 0 else None,
+    }
 
 
 def _without_unreached_measurement(warning: CommunityWarning, event_t: int) -> CommunityWarning:

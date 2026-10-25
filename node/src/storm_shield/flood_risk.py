@@ -6,7 +6,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 from storm_shield.community_reading import CommunityReading
-from storm_shield.region import FlashFlood, FloodWarning
+from storm_shield.region import FlashFlood, FloodWarning, StormSurge
 
 # The unit each kind this Rule set reads is sent in. Any other kind is ignored; a known kind in
 # another unit is ignored too, since reading its number as if it were in this unit would be wrong.
@@ -57,6 +57,8 @@ class _NodeView:
     rules: FloodWarning
     water_cm: float | None
     water_gain_cm: float
+    # Between the first and newest water level in the history, on the sender's clock.
+    water_gain_seconds: int
     surge_rise_cm: float
     surge_seconds: int
     rain_mmh: float | None
@@ -82,6 +84,7 @@ class _NodeView:
             rules=rules,
             water_cm=newest_water * 100 if water else None,
             water_gain_cm=(newest_water - water[0][1]) * 100 if water else 0.0,
+            water_gain_seconds=newest_water_t - water[0][0] if water else 0,
             surge_rise_cm=round((newest_water - lowest) * 100, 1) if water else 0.0,
             surge_seconds=newest_water_t - lowest_t if water else 0,
             rain_mmh=rain[-1][1] if rain else None,
@@ -93,6 +96,15 @@ class _NodeView:
     def surging(self) -> bool:
         levels = self.rules.water_levels
         return isinstance(levels, FlashFlood) and self.surge_rise_cm >= levels.surge_rise.cm
+
+    @property
+    def passing_warning_height(self) -> bool:
+        levels = self.rules.water_levels
+        return (
+            isinstance(levels, StormSurge)
+            and self.water_rising
+            and _reaches(self.water_cm, levels.warning_height.cm)
+        )
 
     @property
     def water_rising(self) -> bool:
@@ -228,6 +240,41 @@ def flood_risk(
         nodes=node_levels,
         surged=sorted(surged),
     )
+
+
+@dataclass(frozen=True)
+class WarningTrigger:
+    """What a Registered Node's readings say when its Hazard's Community Warning fires."""
+
+    river_km: float | None
+    level_m: float | None
+    rise_m: float
+    rise_seconds: int  # on the sender's clock
+
+
+def warning_triggers(
+    recent: dict[str, list[CommunityReading]],
+    registered_ids: Collection[str],
+    rules: FloodWarning,
+) -> dict[str, WarningTrigger]:
+    """Each counted Node whose water fires the Hazard's Community Warning now, by id.
+
+    A flash flood fires on a Surge; a storm surge on the level passing `warning_height` while it
+    has risen `rising` across the history.
+    """
+    triggers = {}
+    for node, readings in recent.items():
+        if not _counts(node, registered_ids):
+            continue
+        view = _NodeView.of(node, readings, rules)
+        if view.surging or view.passing_warning_height:
+            triggers[node] = WarningTrigger(
+                river_km=readings[-1].river_km,
+                level_m=None if view.water_cm is None else view.water_cm / 100,
+                rise_m=view.water_gain_cm / 100,
+                rise_seconds=view.water_gain_seconds,
+            )
+    return triggers
 
 
 def _counts(node: str, registered_ids: Collection[str]) -> bool:

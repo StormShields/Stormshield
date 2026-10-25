@@ -15,6 +15,7 @@ const WARNING: CommunityWarning = {
   id: 7,
   t: SURGE_T + 3,
   nodes: ["s0"],
+  hazard: "flash_flood",
   reasons: ["water_surge"],
   origin: "s0",
   origin_km: -12.2,
@@ -95,7 +96,9 @@ describe("the takeover on the page", () => {
     render(<App />);
 
     const takeover = await screen.findByRole("alertdialog");
-    expect(within(takeover).getByText("COMMUNITY WARNING · NOT OFFICIAL")).toBeVisible();
+    expect(
+      within(takeover).getByText("FLASH FLOOD · COMMUNITY WARNING · NOT OFFICIAL"),
+    ).toBeVisible();
     expect(
       within(takeover).getByText("Check official sources for any evacuation decision."),
     ).toBeVisible();
@@ -114,7 +117,9 @@ describe("the takeover on the page", () => {
 
     fireEvent.click(within(first).getByRole("button", { name: "Acknowledge" }));
     const second = await screen.findByRole("alertdialog");
-    expect(within(second).getByText("COMMUNITY WARNING · NOT OFFICIAL")).toBeVisible();
+    expect(
+      within(second).getByText("FLASH FLOOD · COMMUNITY WARNING · NOT OFFICIAL"),
+    ).toBeVisible();
     expect(screen.queryByText("1 of 2")).toBeNull();
   });
 

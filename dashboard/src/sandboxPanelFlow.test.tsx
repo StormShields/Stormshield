@@ -162,6 +162,7 @@ test("a Node that heard the latest warning is ticked, and one that did not is no
     id: 1,
     t: 0,
     nodes: ["near"],
+    hazard: "flash_flood",
     reasons: ["water_surge"],
     origin: "near",
     origin_km: 3,

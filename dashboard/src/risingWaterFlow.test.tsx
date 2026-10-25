@@ -45,6 +45,7 @@ const WARNING: CommunityWarning = {
   id: 7,
   t: SURGE_T + 3,
   nodes: ["s0"],
+  hazard: "flash_flood",
   reasons: ["water_surge"],
   origin: "s0",
   origin_km: -10,

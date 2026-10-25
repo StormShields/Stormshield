@@ -12,6 +12,7 @@ const WARNING: CommunityWarning = {
   id: 7,
   t: IAN_AFTERNOON + 3,
   nodes: ["bay"],
+  hazard: "flash_flood",
   reasons: ["water_surge"],
   origin: "bay",
   origin_km: -12.2,

@@ -1,5 +1,5 @@
 import { FAKE_REGION } from "./fakeNodeState";
-import { measuredSpeedLine, type CommunityWarning } from "./communityWarnings";
+import { measuredSpeedLine, type FlashFloodWarning } from "./communityWarnings";
 import {
   MAX_DISTANCE_TO_RIVER_KM,
   parseRiverLine,
@@ -36,11 +36,12 @@ const RIVER: RiverLine = [
 
 const SURGE_T = 1_787_716_020;
 
-function warningAt(originKm: number, surgeT = SURGE_T): CommunityWarning {
+function warningAt(originKm: number, surgeT = SURGE_T): FlashFloodWarning {
   return {
     id: 1,
     t: surgeT,
     nodes: ["s0"],
+    hazard: "flash_flood",
     reasons: ["water_surge"],
     origin: "s0",
     origin_km: originKm,

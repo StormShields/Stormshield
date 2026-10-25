@@ -10,9 +10,12 @@ function howLong(seconds: number): string {
   return seconds === 0 ? "at once" : `in ${seconds} s`;
 }
 
-// What a Surge reads like depends on the Hazard.
+const waterRose = (rise: string, duration: string) => `water rose ${rise} ${duration}`;
+
+// What a Surge reads like depends on the Hazard; the Node finds none on a coast today.
 const SURGE_SENTENCES: Record<Hazard, (rise: string, duration: string) => string> = {
-  flash_flood: (rise, duration) => `water rose ${rise} ${duration}`,
+  flash_flood: waterRose,
+  storm_surge: waterRose,
 };
 
 export function reasonSentence(

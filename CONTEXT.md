@@ -123,7 +123,7 @@ A government water-level station (a NOAA tide gauge in Florida) whose measuremen
 _Avoid_: official sensor, station, buoy
 
 **Community Warning**:
-A signed warning the Hub issues when one Registered Node reports a Surge; it names that Node and its River km so each Viewer can work out when the wave reaches its home. Never an evacuation order, and always points residents to official sources for evacuation decisions.
+A signed warning the Hub issues when its Hazard's trigger fires on one Registered Node, titled with the Hazard ("Storm Surge", "Flash Flood"). On a flash flood the trigger is a Surge, and the warning names that Node and its River km so each Viewer can work out when the wave reaches its home. On a storm surge it is the Node's water level passing the Region's warning height while rising, and the warning names that Node, its level and its rate of rise so each Viewer can work out its own Water ETA. Never an evacuation order, and always points residents to official sources for evacuation decisions.
 _Avoid_: alert, alarm, evacuation notice
 
 **Region**:

@@ -1,6 +1,6 @@
 import type { TakeoverWarning } from "./acknowledgedWarnings";
 import { useChimeForWarning } from "./chime";
-import { warningSentence } from "./communityWarnings";
+import { communityWarningTitle, warningSentence } from "./communityWarnings";
 import type { NodeSnapshot } from "./nodeState";
 import { officialTag } from "./officialAlerts";
 import { useRegion } from "./RegionContext";
@@ -21,7 +21,9 @@ export function WarningBand({
   useChimeForWarning(current?.key);
   if (!current) return null;
   const tag =
-    current.kind === "official" ? officialTag(current.alert) : "COMMUNITY WARNING · NOT OFFICIAL";
+    current.kind === "official"
+      ? officialTag(current.alert)
+      : communityWarningTitle(current.warning);
   const sentence =
     current.kind === "official"
       ? current.alert.headline

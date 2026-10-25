@@ -1,4 +1,4 @@
-import type { CommunityWarning } from "./communityWarnings";
+import type { FlashFloodWarning } from "./communityWarnings";
 import type { Home } from "./householdProfile";
 
 // One stretch of river with a single reconstructed wave speed; `km[i]` is the River km at `points[i]`.
@@ -76,7 +76,7 @@ function travelSeconds(river: RiverLine, fromKm: number, toKm: number): number {
 
 // Below the second Node the measured speed replaces the reconstructed reaches, counted from that
 // Node's own Surge; above it the reconstructed speeds from the origin still apply.
-function arrivalAt(river: RiverLine, warning: CommunityWarning, homeKm: number): number {
+function arrivalAt(river: RiverLine, warning: FlashFloodWarning, homeKm: number): number {
   const { measured } = warning;
   if (measured && homeKm > measured.km) {
     return measured.surge_t + ((homeKm - measured.km) / measured.speed_kmh) * SECONDS_PER_HOUR;
@@ -92,7 +92,7 @@ export type WaveArrival =
 // origin is at or below it. The map's front and town stamps read it too, so they agree with the ETA.
 export function arrivalAtKm(
   river: RiverLine,
-  warnings: CommunityWarning[],
+  warnings: FlashFloodWarning[],
   riverKm: number,
 ): number | null {
   const arrivals = warnings
@@ -106,7 +106,7 @@ export function arrivalAtKm(
 export function waveArrival(
   river: RiverLine,
   home: Home,
-  warnings: CommunityWarning[],
+  warnings: FlashFloodWarning[],
 ): WaveArrival | null {
   if (warnings.length === 0) return null;
   const homeKm = riverKmOfHome(river, home);
@@ -126,7 +126,7 @@ export function waveEtaLine(arrivalAt: number, eventT: number): string {
 // grows with River km.
 export function waveFrontKm(
   river: RiverLine,
-  warnings: CommunityWarning[],
+  warnings: FlashFloodWarning[],
   eventT: number,
 ): number | null {
   const endKm = Math.max(...river.map(({ km }) => km[km.length - 1]));

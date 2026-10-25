@@ -1,4 +1,4 @@
-import type { CommunityWarning } from "./communityWarnings";
+import type { FlashFloodWarning } from "./communityWarnings";
 import { waveArrival, type RiverLine } from "./waveEta";
 import {
   WAVE_FLASH_SECONDS,
@@ -36,10 +36,11 @@ const SURGE_T = 1_787_716_020;
 const lat = (km: number) => 28 - km * 0.009;
 const TEN_KM_AT = SURGE_T + (10 / 190) * 3600 + (10 / 60) * 3600;
 
-const WARNING: CommunityWarning = {
+const WARNING: FlashFloodWarning = {
   id: 1,
   t: SURGE_T,
   nodes: ["s0"],
+  hazard: "flash_flood",
   reasons: ["water_surge"],
   origin: "s0",
   origin_km: -10,
@@ -98,7 +99,7 @@ describe("the wave front's position on the Event clock", () => {
   });
 
   it("moves like the ETA when a measured speed is present", () => {
-    const measured: CommunityWarning = {
+    const measured: FlashFloodWarning = {
       ...WARNING,
       measured: { node: "s1", km: 0, surge_t: SURGE_T + 190, speed_kmh: 30 },
     };

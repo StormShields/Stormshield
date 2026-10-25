@@ -131,6 +131,7 @@ def test_a_warning_not_sent_by_the_hub_is_not_shown(meshed_nodes: MeshedNodes) -
     forged = CommunityWarning(
         id=1,
         t=1,
+        hazard="flash_flood",
         nodes=["s0"],
         reasons=["water_surge"],
         origin="s0",
@@ -292,7 +293,14 @@ def test_the_measurement_shows_only_once_the_event_clock_reaches_the_second_surg
 def test_an_older_copy_of_a_warning_does_not_undo_its_measurement() -> None:
     heard = HeardCommunityWarnings()
     plain = CommunityWarning(
-        id=7, t=1, nodes=["s0"], reasons=["water_surge"], origin="s0", origin_km=0.0, surge_t=1
+        id=7,
+        t=1,
+        hazard="flash_flood",
+        nodes=["s0"],
+        reasons=["water_surge"],
+        origin="s0",
+        origin_km=0.0,
+        surge_t=1,
     )
     measured = plain.model_copy(
         update={"measured": MeasuredSpeed(node="s1", km=15.6, surge_t=721, speed_kmh=78.0)}

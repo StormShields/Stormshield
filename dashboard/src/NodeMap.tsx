@@ -39,7 +39,7 @@ import type { FloodProneAreas } from "./floodProne";
 import type { Home } from "./householdProfile";
 import type { LatLon } from "./routeGrid";
 import type { NodeOnMap } from "./nodesOnMap";
-import type { CommunityWarning } from "./communityWarnings";
+import type { FlashFloodWarning } from "./communityWarnings";
 import type { EventClock } from "./useEventClock";
 import { usePrefersReducedMotion } from "./useViewport";
 import type { RiverLine } from "./waveEta";
@@ -202,7 +202,7 @@ type Props = {
   // The valley's own river line, drawn only when the pack has no basemap.
   river: RiverLine | null;
   // What the wave front needs: the Surges that started it and the Event clock it runs on.
-  warnings: CommunityWarning[];
+  warnings: FlashFloodWarning[];
   // The Node a new Community Warning started at: it rings and the camera goes to it, once per key.
   warningFocus: { key: string; nodeId: string } | null;
   clock: EventClock | null;

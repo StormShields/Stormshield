@@ -155,6 +155,7 @@ def test_a_community_warning_signed_by_the_hub_verifies_and_one_signed_by_anothe
     warning = CommunityWarning(
         id=1_787_716_020,
         t=1_787_716_021,
+        hazard="flash_flood",
         nodes=["b7e1f40a92c5"],
         reasons=["water_surge"],
         origin="b7e1f40a92c5",

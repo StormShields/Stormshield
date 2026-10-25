@@ -16,6 +16,7 @@ const WARNING: CommunityWarning = {
   id: 7,
   t: SURGE_T + 3,
   nodes: ["s0"],
+  hazard: "flash_flood",
   reasons: ["water_surge"],
   origin: "s0",
   origin_km: -12.2,
@@ -86,7 +87,7 @@ describe("the warning band on a desktop", () => {
     render(<App />);
 
     const shown = await band();
-    expect(within(shown).getByText("COMMUNITY WARNING · NOT OFFICIAL")).toBeVisible();
+    expect(within(shown).getByText("FLASH FLOOD · COMMUNITY WARNING · NOT OFFICIAL")).toBeVisible();
     expect(within(shown).getByText(/S0 Lhende/)).toBeVisible();
     expect(
       within(shown).getByText("Check official sources for any evacuation decision."),
@@ -133,7 +134,9 @@ describe("the warning band on a desktop", () => {
       }),
     );
     const second = await band();
-    expect(within(second).getByText("COMMUNITY WARNING · NOT OFFICIAL")).toBeVisible();
+    expect(
+      within(second).getByText("FLASH FLOOD · COMMUNITY WARNING · NOT OFFICIAL"),
+    ).toBeVisible();
     expect(screen.queryByText("1 of 2")).toBeNull();
   });
 });
