@@ -82,6 +82,10 @@ _Avoid_: plugin, module, detector
 A Community Reading whose value comes from an Event's replayed surface instead of a real sensor; always labeled as such.
 _Avoid_: fake reading, mock data
 
+**Live Hub**:
+A Hub that is currently hearing a Community Reading from a Registered Node that is not a Simulated Reading and is not Stale. Judged continuously, so it stops being live once the last such Node goes Stale. While a Hub is live it offers no Replay, stops one that is playing, and shows and counts only the Nodes whose readings are not simulated; a line in the Hub Panel says why.
+_Avoid_: online Hub (that is about internet, see Mesh-only), production Hub
+
 **Fuzzed Position**:
 A Node's location snapped to a grid of about 200 m before anything is published; the true location never leaves the Node. A fixed grid, not random jitter, because jitter can be averaged away by an observer collecting many readings.
 _Avoid_: exact location, coordinates
@@ -95,7 +99,7 @@ The kind of Event: flash flood or storm surge today, others (lightning, frost) a
 _Avoid_: event type, threat, disaster
 
 **Replay**:
-How an Event is played: a file describing the water surface and weather over time, played on the Event clock. The surface is a set of stations, each a level series; on a river they sit at River kms, and a Sensor Node inside the corridor reads the level interpolated along River km, while one outside it is dry and sends no water level. On a coast they sit at positions, the level at a spot is the stations blended by inverse distance, and the spot is wet only when that level is above its ground height (from the Cache Pack's terrain, so approximate); a dry Sensor sends no water level, never zero. Each Sensor Node reads its Simulated Readings at its own position, so a Node on high ground stays dry; a real Event's Replay is rebuilt from recorded gauges and reports, and its Official Alerts appear at their real times. Always labelled REPLAY. A Replay is for checking the system and for demos: a Region runs either on live readings or on one of its own Replays, never both on one map, and never another Region's Replay.
+How an Event is played: a file describing the water surface and weather over time, played on the Event clock. The surface is a set of stations, each a level series; on a river they sit at River kms, and a Sensor Node inside the corridor reads the level interpolated along River km, while one outside it is dry and sends no water level. On a coast they sit at positions, the level at a spot is the stations blended by inverse distance, and the spot is wet only when that level is above its ground height (from the Cache Pack's terrain, so approximate); a dry Sensor sends no water level, never zero. Each Sensor Node reads its Simulated Readings at its own position, so a Node on high ground stays dry; a real Event's Replay is rebuilt from recorded gauges and reports, and its Official Alerts appear at their real times. Always labelled REPLAY. A Replay is for checking the system and for demos: a Region runs either on live readings or on one of its own Replays, never both on one map, and never another Region's Replay. Live readings win: a Live Hub plays no Replay.
 _Avoid_: playback, recording, simulation
 
 **Event clock**:
