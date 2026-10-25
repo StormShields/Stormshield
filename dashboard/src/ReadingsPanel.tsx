@@ -111,6 +111,10 @@ export function ReadingsPanel({
               </ReadingSlot>
             </li>
           ))}
+        {/* On a coast a Sensor whose ground is above the water sends no level at all, not zero. */}
+        {region?.water_type === "coast" &&
+          node.measurements.length > 0 &&
+          node.waterLevelCm === null && <li className="dry">{kindLabel("water_level")}: dry</li>}
       </ul>
     </section>
   );
