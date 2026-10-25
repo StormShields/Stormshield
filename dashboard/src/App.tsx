@@ -109,8 +109,10 @@ export function App() {
   // Kept while unreachable: each carries its own issue time, and losing an evacuation order to a
   // Wi-Fi drop is worse than showing one a few seconds old.
   const officialAlerts = lastAnswer?.state.official_alerts ?? [];
-  const communityWarnings = lastAnswer?.state.community_warnings ?? [];
-  const riverWarnings = flashFloodWarnings(communityWarnings);
+  const heardWarnings = lastAnswer?.state.community_warnings;
+  const communityWarnings = heardWarnings ?? [];
+  // Kept until the next poll: the wave layer redraws whenever this array changes.
+  const riverWarnings = useMemo(() => flashFloodWarnings(heardWarnings ?? []), [heardWarnings]);
   const eventNow = eventClock.clock?.event_t ?? null;
   const waterReaches =
     river && eventNow !== null ? waterReachesAt(river, riverWarnings, nodes, eventNow) : [];
