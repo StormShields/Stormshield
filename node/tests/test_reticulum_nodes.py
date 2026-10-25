@@ -9,8 +9,8 @@ from typing import Any
 
 import httpx
 import pytest
+from fixture_pack import nepal_event
 
-from storm_shield.replay import load_event
 from storm_shield.reticulum_mesh import LOOPBACK_BASE_PORT
 
 # Real Node processes on fixed ports; run on demand, not on every PR (see docs/roadmap.md).
@@ -143,7 +143,7 @@ def test_nodes_find_each_other_and_a_reading_crosses_the_mesh(nodes: list[Runnin
     _eventually(lambda: _each_hears_exactly(nodes, ids))
 
     porch_id = nodes[0].id()
-    first_moment = load_event().weather[0].pressure_hpa
+    first_moment = nepal_event().weather[0].pressure_hpa
     _eventually(lambda: nodes[2].pressure_from(porch_id) == first_moment)
 
 

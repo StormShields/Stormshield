@@ -4,24 +4,27 @@ from pathlib import Path
 import pytest
 from meshed_nodes import MeshedNodes
 
-from storm_shield import replay
+from storm_shield import region
+from storm_shield.region import events_dir, region_path
 
 
 @pytest.fixture(autouse=True)
 def two_events(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The Nepal Event plus a made-up one with a different phase list, in a folder of their own."""
-    events_dir = tmp_path / "events"
-    events_dir.mkdir()
-    nepal = json.loads((replay.EVENTS_DIR / "bhote-koshi-2026.json").read_text())
-    (events_dir / "bhote-koshi-2026.json").write_text(json.dumps(nepal))
+    """The Nepal Event plus a made-up one with a different phase list, in a Region of their own."""
+    nepal_dir = tmp_path / "nepal"
+    events = nepal_dir / "events"
+    events.mkdir(parents=True)
+    (nepal_dir / "region.json").write_text(region_path("nepal").read_text())
+    nepal = json.loads((events_dir("nepal") / "bhote-koshi-2026.json").read_text())
+    (events / "bhote-koshi-2026.json").write_text(json.dumps(nepal))
     made_up = {
         **nepal,
         "id": "made-up-flood",
         "label": "A made-up flood",
         "phases": [{"id": "only", "at": "09:00:00", "label": "The only phase"}],
     }
-    (events_dir / "made-up-flood.json").write_text(json.dumps(made_up))
-    monkeypatch.setattr(replay, "EVENTS_DIR", events_dir)
+    (events / "made-up-flood.json").write_text(json.dumps(made_up))
+    monkeypatch.setattr(region, "REGIONS_DIR", tmp_path)
 
 
 def test_the_hub_lists_the_events_it_holds(meshed_nodes: MeshedNodes) -> None:

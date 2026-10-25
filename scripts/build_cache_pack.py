@@ -122,7 +122,7 @@ def read_events(region: Region, region_dir: Path) -> dict[str, tuple[Event, byte
     events = {}
     for path in sorted((region_dir / "events").glob("*.json")):
         event = read_event_file(path)
-        event.require_alert_sources_of(region)
+        event.require_fits(region)
         events[event.id] = (event, path.read_bytes())
     return events
 

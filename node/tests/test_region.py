@@ -1,9 +1,11 @@
 import json
+import shutil
 from pathlib import Path
 from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from fixture_pack import nepal_event
 from meshed_nodes import MeshedNodes
 
 from storm_shield import region as region_module
@@ -14,19 +16,21 @@ from storm_shield.region import (
     CoastFloodWarningRules,
     FloodWarningRules,
     RegionError,
+    events_dir,
     load_region,
     region_path,
 )
-from storm_shield.replay import load_event
 from storm_shield.settings import Settings
 
 NEPAL = region_path("nepal")
+NEPAL_EVENTS = events_dir("nepal")
 
 
 def _write_region(folder: Path, name: str = "fixture", **changes: Any) -> Path:
-    """A Region file under `folder` made from Nepal's with `changes` merged in; its path."""
+    """A Region file under `folder` made from Nepal's with `changes` merged in, beside a copy of
+    Nepal's Events; its path."""
     region = json.loads(NEPAL.read_text()) | {"name": name} | changes
-    (folder / name).mkdir(parents=True)
+    shutil.copytree(NEPAL_EVENTS, folder / name / "events")
     path = folder / name / "region.json"
     path.write_text(json.dumps(region))
     return path
@@ -116,9 +120,9 @@ def test_an_event_alert_from_a_source_the_region_does_not_list_stops_the_node(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     sources = [{"tag": "dhm", "name": "DHM", "covers": "Nepal"}]
+    assert nepal_event().official_alerts[-1].issuer == "district"
     _write_region(tmp_path, official_alert_sources=sources)
     monkeypatch.setattr(region_module, "REGIONS_DIR", tmp_path)
-    assert load_event().official_alerts[-1].issuer == "district"
     settings = Settings(name="porch", region="fixture", dashboard_dir=tmp_path / "none")
     mesh = InMemoryNetwork().join("porch", "hub")
     with pytest.raises(RegionError, match="district"):
@@ -223,13 +227,13 @@ def test_a_river_shelter_needs_its_height_above_the_river(tmp_path: Path) -> Non
         load_region(_write_region(tmp_path, shelters=shelters))
 
 
-def test_a_node_will_not_start_on_a_coast_region_yet(
+def test_a_node_on_a_coast_region_will_not_play_a_flash_flood(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     folder = tmp_path / "regions"
-    (folder / "fort-myers").mkdir(parents=True)
+    shutil.copytree(NEPAL_EVENTS, folder / "fort-myers" / "events")
     (folder / "fort-myers" / "region.json").write_text(FORT_MYERS.read_text())
     monkeypatch.setattr(region_module, "REGIONS_DIR", folder)
     settings = Settings(name="porch", region="fort-myers", dashboard_dir=tmp_path / "none")
-    with pytest.raises(RegionError, match="storm-surge rules"):
+    with pytest.raises(RegionError, match="is a flash_flood"):
         create_app(settings, InMemoryNetwork().join("porch", "hub"))

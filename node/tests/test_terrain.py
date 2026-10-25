@@ -20,4 +20,5 @@ def test_elevation_is_read_from_the_finest_tile_holding_the_point() -> None:
     }
     assert elevation_at(tiles.get, 1.5, 1.5) == 1400
     with pytest.raises(ValueError, match="no elevation tile"):
-        elevation_at({}.get, 1.5, 1.5)
+        no_tiles: dict[str, bytes] = {}
+        elevation_at(no_tiles.get, 1.5, 1.5)

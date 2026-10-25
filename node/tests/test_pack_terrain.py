@@ -7,6 +7,7 @@ from pack_sources import SourceFailed
 from pack_terrain import fetch_terrain, tiles_covering
 from terrarium import terrarium_png
 
+from storm_shield import terrain
 from storm_shield.region import Source
 
 BBOX = (27.86, 85.08, 28.46, 85.47)
@@ -34,7 +35,7 @@ def test_tiles_are_read_from_the_template_under_the_regions_folder(
     tmp_path: Path, quick_tiles: None
 ) -> None:
     bbox = (1.0, 1.0, 1.01, 1.01)
-    for zoom, x, y in tiles_covering(bbox, pack_terrain.ZOOMS):
+    for zoom, x, y in tiles_covering(bbox, terrain.ZOOMS):
         tile = tmp_path / "terrain" / str(zoom) / str(x) / f"{y}.png"
         tile.parent.mkdir(parents=True, exist_ok=True)
         tile.write_bytes(terrarium_png(5))
@@ -56,7 +57,7 @@ def test_tiles_over_budget_fail_the_build(
     tmp_path: Path, quick_tiles: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     bbox = (1.0, 1.0, 1.01, 1.01)
-    for zoom, x, y in tiles_covering(bbox, pack_terrain.ZOOMS):
+    for zoom, x, y in tiles_covering(bbox, terrain.ZOOMS):
         tile = tmp_path / str(zoom) / str(x) / f"{y}.png"
         tile.parent.mkdir(parents=True, exist_ok=True)
         tile.write_bytes(terrarium_png(5))

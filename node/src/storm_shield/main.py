@@ -19,7 +19,7 @@ from storm_shield.cache_pack import (
     CachePack,
     download_source,
 )
-from storm_shield.community_reading import CommunityReading, Reading, fuzz_position
+from storm_shield.community_reading import CommunityReading, Position, Reading, fuzz_position
 from storm_shield.community_warning import CommunityWarning, HeardCommunityWarnings, HubWarnings
 from storm_shield.flood_email import FloodEmail
 from storm_shield.flood_risk import FloodRisk, flood_risk
@@ -45,15 +45,14 @@ from storm_shield.official_alert import HeardOfficialAlerts, OfficialAlert
 from storm_shield.reading_publisher import ReadingPublisher
 from storm_shield.reading_store import NodeSnapshot, ReadingStore
 from storm_shield.region import (
-    CoastFloodWarningRules,
+    Coast,
     Hazard,
     Region,
-    RegionError,
     RegionSummary,
     load_region,
     region_path,
 )
-from storm_shield.replay import Event, EventClock, ReplayClockMessage, load_events
+from storm_shield.replay import Event, EventClock, ReplayClockMessage, SensorSpot, load_events
 from storm_shield.reticulum_mesh import ReticulumMesh
 from storm_shield.sandbox_api import (
     RadioRange,
@@ -70,6 +69,7 @@ from storm_shield.shelter_status import (
     ShelterStatus,
     UnknownShelter,
 )
+from storm_shield.terrain import elevation_at
 from storm_shield.timing import REPLAY_PUBLISH_EVERY_SECONDS
 from storm_shield.weather_forecast import FORECAST_TIMEOUT_SECONDS, WeatherForecast
 
@@ -188,10 +188,6 @@ def create_app(
     cache_pack = CachePack(settings.cache_pack_dir)
     region = region or _region_of(settings, cache_pack)
     rules = region.rules.flood_warning
-    if isinstance(rules, CoastFloodWarningRules):
-        raise RegionError(
-            f"{region.label} is a coast Region, and the Node does not read storm-surge rules yet"
-        )
     weather_forecast = WeatherForecast(settings.data_dir, region.bbox)
     weather_source = weather_source or httpx.Client(
         timeout=FORECAST_TIMEOUT_SECONDS, follow_redirects=True
@@ -205,10 +201,8 @@ def create_app(
     )
     # httpx logs every request URL at INFO, and a tile URL carries the CARTO key.
     logging.getLogger("httpx").setLevel(logging.WARNING)
-    store = ReadingStore(rules.flash_flood.rising_window_s)
-    events = load_events()
-    for each in events.values():
-        each.require_alert_sources_of(region)
+    store = ReadingStore(rules.water_levels.rising_window_s)
+    events = load_events(region)
     first_event = next(iter(events.values()))
     event_clock = EventClock(first_event.id)
 
@@ -217,6 +211,26 @@ def create_app(
         return events.get(event_clock.current(clock()).event, first_event)
 
     measured_kinds = {kind.strip() for kind in settings.measures.split(",") if kind.strip()}
+    missing_ground: list[Position] = []
+
+    def ground_m() -> float | None:
+        """This Node's ground height above the coast datum, from its pack's terrain."""
+        if not isinstance(region.water, Coast):
+            return None
+
+        def tile(path: str) -> bytes | None:
+            found = cache_pack.file(path)
+            return found.read_bytes() if found else None
+
+        try:
+            return elevation_at(tile, settings.latitude, settings.longitude)
+        except ValueError:
+            spot = Position(settings.latitude, settings.longitude)
+            if spot not in missing_ground:
+                missing_ground.append(spot)
+                # Until a pack with terrain arrives, the Node reads its spot as dry.
+                logger.warning("no terrain in the Cache Pack at %s; reading the spot as dry", spot)
+            return None
 
     def own_measurements() -> list[Reading] | None:
         """What this Node reads from the Event's surface at its own position.
@@ -230,7 +244,10 @@ def create_app(
             event_t = event.start_unix
         else:
             event_t = heard.event_t
-        readings = event.readings_at(settings.river_km, event_t, clock())
+        spot = SensorSpot(
+            Position(settings.latitude, settings.longitude), settings.river_km, ground_m()
+        )
+        readings = event.readings_at(spot, event_t, clock())
         return [r for r in readings if r.kind in measured_kinds] or None
 
     def keep_reading(sender: str, reading: CommunityReading) -> None:
