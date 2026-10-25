@@ -121,6 +121,17 @@ def test_a_spot_turns_wet_once_the_water_passes_its_ground(
     )
 
 
+@pytest.mark.usefixtures("coast_pack")
+def test_a_damaged_terrain_tile_reads_as_dry_and_the_sensor_keeps_publishing(
+    meshed_nodes: MeshedNodes, tmp_path: Path
+) -> None:
+    # The fixture's Region folder, with a pack whose shore tile is not a PNG.
+    pack = (tmp_path / "damaged", build_fort_myers_pack({_tile_path(SHORE): b"not a png"}))
+    _start_sensors(meshed_nodes, pack, shore=SHORE)
+    _wait_until(lambda: "air_pressure" in _measurements(meshed_nodes, "shore"))
+    assert "water_level" not in _measurements(meshed_nodes, "shore")
+
+
 def test_the_level_between_stations_is_blended_by_distance() -> None:
     far_station = STATION | {"id": "far", "pos": [SHORE[0], INLAND[1]], "series": [[0, 2.4]]}
     event = Event.model_validate(

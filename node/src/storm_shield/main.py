@@ -1,6 +1,8 @@
 import asyncio
 import logging
+import struct
 import threading
+import zlib
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
@@ -211,26 +213,30 @@ def create_app(
         return events.get(event_clock.current(clock()).event, first_event)
 
     measured_kinds = {kind.strip() for kind in settings.measures.split(",") if kind.strip()}
-    missing_ground: list[Position] = []
+    # Read once per spot and pack, not at every share; a new pack or a Sandbox move reads again.
+    ground_heights: dict[Position, float | None] = {}
+    ground_heights_pack: list[object] = [None]
+
+    def tile(path: str) -> bytes | None:
+        found = cache_pack.file(path)
+        return found.read_bytes() if found else None
 
     def ground_m() -> float | None:
         """This Node's ground height above the coast datum, from its pack's terrain."""
         if not isinstance(region.water, Coast):
             return None
-
-        def tile(path: str) -> bytes | None:
-            found = cache_pack.file(path)
-            return found.read_bytes() if found else None
-
-        try:
-            return elevation_at(tile, settings.latitude, settings.longitude)
-        except ValueError:
-            spot = Position(settings.latitude, settings.longitude)
-            if spot not in missing_ground:
-                missing_ground.append(spot)
-                # Until a pack with terrain arrives, the Node reads its spot as dry.
-                logger.warning("no terrain in the Cache Pack at %s; reading the spot as dry", spot)
-            return None
+        if ground_heights_pack[0] is not cache_pack.manifest:
+            ground_heights.clear()
+            ground_heights_pack[0] = cache_pack.manifest
+        spot = Position(settings.latitude, settings.longitude)
+        if spot not in ground_heights:
+            try:
+                ground_heights[spot] = elevation_at(tile, spot.latitude, spot.longitude)
+            except (ValueError, OSError, zlib.error, struct.error) as error:
+                # Until a pack with readable terrain arrives, the Node reads its spot as dry.
+                logger.warning("no ground height at %s (%s); reading the spot as dry", spot, error)
+                ground_heights[spot] = None
+        return ground_heights[spot]
 
     def own_measurements() -> list[Reading] | None:
         """What this Node reads from the Event's surface at its own position.

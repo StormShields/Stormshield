@@ -171,7 +171,9 @@ def build(region_dir: Path, output: Path, work_dir: Path, client: httpx.Client) 
     else:
         print("tracing the Flood-Prone Area from the terrain", flush=True)
         traced = trace_flood_prone_area(
-            lambda lat, lon: elevation_at(terrain.get, lat, lon), bbox, water.flood_prone_below.cm / 100
+            lambda lat, lon: elevation_at(terrain.get, lat, lon),
+            bbox,
+            water.flood_prone_below.cm / 100,
         )
         files["flood_prone.geojson"] = json.dumps(traced, separators=(",", ":")).encode()
     flood_prone = FloodProneArea.from_geojson(json.loads(files["flood_prone.geojson"]))

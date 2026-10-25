@@ -113,6 +113,23 @@ test("a coast Sensor that sends no water level reads as dry", async () => {
   expect(within(card).getByText("Water level: dry")).toBeInTheDocument();
 });
 
+test("a real coast Sensor with no water level is not called dry, since it may have no gauge", async () => {
+  stubNode(
+    fakeNodeState({
+      region: FORT_MYERS_REGION,
+      nodes: [
+        fakeNodeSnapshot("pi", {
+          simulated: false,
+          measurements: { air_pressure: { value: 990, unit: "hPa" } },
+        }),
+      ],
+    }),
+  );
+  render(<App />);
+  const card = await screen.findByRole("region", { name: /Node pi/ });
+  expect(within(card).queryByText(/dry/)).not.toBeInTheDocument();
+});
+
 test("a river Sensor off the river does not claim to be dry", async () => {
   stubNode(
     fakeNodeState({
