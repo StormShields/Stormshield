@@ -70,15 +70,23 @@ class MeshedNodes:
         river_km: float | None = None,
         publish_every_seconds: float = 0.02,
         sign_up_repeat_seconds: float = 10,
+        cache_pack: tuple[Path, bytes] | None = None,
+        **overrides: Any,
     ) -> None:
-        """Start a Sensor that trusts `HUB`, with its background loops running so it keeps publishing."""
+        """Start a Sensor that trusts `HUB`, with its background loops running so it keeps publishing;
+        with a (directory, zip) pair it already holds that pack."""
         settings = self._nodes.settings(
             name,
             hub_identity=HUB,
             river_km=river_km,
             publish_every_seconds=publish_every_seconds,
             sign_up_repeat_seconds=sign_up_repeat_seconds,
+            **overrides,
         )
+        if cache_pack:
+            directory, pack = cache_pack
+            settings = settings.model_copy(update={"cache_pack_dir": directory / name})
+            CachePack(directory / name).install(pack)
         self._nodes.start(settings, running=True)
 
     def start_hub(
