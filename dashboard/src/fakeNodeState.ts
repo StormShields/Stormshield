@@ -26,7 +26,7 @@ export const FORT_MYERS_REGION: Region = {
   name: "fort-myers",
   label: "Fort Myers Beach and Estero Bay, Florida",
   water_type: "coast",
-  storm_surge: { rising_window_s: 900, high_level_cm: 182.88 },
+  storm_surge: { rising_window_s: 900, flood_prone_below_cm: 274.32 },
   time_zone: "America/New_York",
   display_units: {
     water_level: "ft",

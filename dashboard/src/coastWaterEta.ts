@@ -27,7 +27,7 @@ function riseCmPerHour(samples: LevelSample[], windowS: number): number | null {
 
 // The Water ETA of one home on a coast, from its ground height and the history of the nearest
 // counting Node's level. Null while the water is not rising by the Region's own measure of rising,
-// or when the home stands above every level the High threshold implies.
+// or when the home stands above the Flood-Prone Area, where the water is not expected to reach.
 export function coastWaterEta(
   groundCm: number,
   samples: LevelSample[],
@@ -35,7 +35,7 @@ export function coastWaterEta(
   eventT: number,
 ): CoastWaterEta | null {
   const newest = samples.at(-1);
-  if (!newest || groundCm > surge.high_level_cm) return null;
+  if (!newest || groundCm > surge.flood_prone_below_cm) return null;
   if (newest.levelCm >= groundCm) {
     return { kind: "at-ground", levelCm: newest.levelCm, groundCm };
   }

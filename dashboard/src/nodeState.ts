@@ -21,7 +21,7 @@ export type Region = {
   // A river Region draws a hand-made corridor; a coast Region traces its Flood-Prone Area.
   water_type: "river" | "coast";
   // The coast thresholds a Viewer needs for its own Water ETA, in cm; null on a river.
-  storm_surge: { rising_window_s: number; high_level_cm: number } | null;
+  storm_surge: { rising_window_s: number; flood_prone_below_cm: number } | null;
   time_zone: string;
   display_units: DisplayUnits;
   // An Official Alert names its source by `tag`; the Region says what to call it.

@@ -216,7 +216,7 @@ The Simulated Fleet, the camera clips and Cameras Panel, and the breadboard and 
   - Inputs: the home's ground height (read from the pack's terrain on the device), the latest `water_level` from the nearest counting Node that reports one, and that Node's rate of rise over the Region's `rising_window_s`.
   - The ETA is (ground height − level) ÷ rate, counted down on the Event clock. It is shown in hours and minutes ("Water reaches your ground in about 2 h 10 min") with its basis ("level 5.1 ft, rising 1.4 ft/h, your ground 8.2 ft").
   - It reads "Water is at your ground now" once the level reaches the ground.
-  - There is none while no counting Node reports a rising level, or while the home is above every level the Rule set's High threshold implies.
+  - There is none while no counting Node reports a rising level, or while the home's ground is above the Region's `flood_prone_below` (the High threshold sits below real surge peaks, so it would hide the ETA from homes that flood).
   - It is re-judged as each reading arrives, so it moves with the rate of rise. The Reachable Shelter rule uses it unchanged: walking time less than the Water ETA minus the safety margin.
 - **The river Water ETA is unchanged** (Surge arrival at the home snapped to the river line). The dashboard picks one or the other by the Region's water type.
 

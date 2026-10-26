@@ -299,12 +299,11 @@ class Region(_Strict):
 
     def _storm_surge_summary(self) -> "StormSurgeSummary | None":
         rules = self.rules.flood_warning
-        if not isinstance(rules, CoastFloodWarningRules):
+        if not isinstance(rules, CoastFloodWarningRules) or not isinstance(self.water, Coast):
             return None
-        surge = rules.storm_surge
         return StormSurgeSummary(
-            rising_window_s=surge.rising_window_s,
-            high_level_cm=surge.high_level.cm,
+            rising_window_s=rules.storm_surge.rising_window_s,
+            flood_prone_below_cm=self.water.flood_prone_below.cm,
         )
 
     def has_alert_source(self, tag: str) -> bool:
@@ -326,7 +325,8 @@ class StormSurgeSummary(BaseModel):
     """The coast thresholds a Viewer needs to work out its own Water ETA, in centimetres."""
 
     rising_window_s: int
-    high_level_cm: float
+    # Ground above the Flood-Prone Area gets no Water ETA.
+    flood_prone_below_cm: float
 
 
 class RegionSummary(BaseModel):

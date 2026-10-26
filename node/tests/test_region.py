@@ -177,7 +177,7 @@ def test_fort_myers_is_a_coast_region_read_in_feet_and_miles() -> None:
     surge = region.summary().storm_surge
     assert surge is not None
     assert surge.rising_window_s == 900
-    assert surge.high_level_cm == pytest.approx(6 * 30.48)
+    assert surge.flood_prone_below_cm == pytest.approx(9 * 30.48)
     # The Hub runs in a Shelter, which is dry ground where people gather.
     assert region.hub_site.pos in [shelter.pos for shelter in region.shelters]
 

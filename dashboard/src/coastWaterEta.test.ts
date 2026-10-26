@@ -2,9 +2,9 @@ import { coastEtaBasis, coastEtaLine, coastWaterEta, type LevelSample } from "./
 import { FORT_MYERS_REGION } from "./fakeNodeState";
 
 const FT = 30.48;
-// Fort Myers' High threshold is 6 ft; these homes stand higher, so the rule that drops a home above
-// it has its own test at the end.
-const SURGE = { ...FORT_MYERS_REGION.storm_surge!, high_level_cm: 12 * FT };
+// Fort Myers' Flood-Prone Area ends at 9 ft; some of these homes stand higher, so the rule that drops
+// a home above it has its own tests at the end.
+const SURGE = { ...FORT_MYERS_REGION.storm_surge!, flood_prone_below_cm: 12 * FT };
 const UNITS = FORT_MYERS_REGION.display_units;
 const HOUR = 3600;
 
@@ -70,8 +70,14 @@ describe("the coast Water ETA", () => {
     ).toBeNull();
   });
 
-  it("has none for a home above every level the High threshold implies", () => {
+  it("has none for a home above the Flood-Prone Area", () => {
     expect(coastWaterEta(12.5 * FT, risingTo(5, 1.4), SURGE, T)).toBeNull();
     expect(coastWaterEta(12 * FT, risingTo(5, 1.4), SURGE, T)).not.toBeNull();
+  });
+
+  it("gives the spec's 8.2 ft home an ETA at Fort Myers, above its High level but inside the Flood-Prone Area", () => {
+    const fortMyers = FORT_MYERS_REGION.storm_surge!;
+    expect(coastWaterEta(8.2 * FT, risingTo(5.1, 1.4), fortMyers, T)).not.toBeNull();
+    expect(coastWaterEta(9.5 * FT, risingTo(5.1, 1.4), fortMyers, T)).toBeNull();
   });
 });
