@@ -459,6 +459,21 @@ section .empty-panel p {
   font-weight: bold;
 }
 
+.coast-eta {
+  margin-bottom: 0.5rem;
+  font-weight: bold;
+}
+
+.coast-eta.at-ground {
+  color: var(--coast-eta-at-ground);
+}
+
+.coast-eta-basis {
+  display: block;
+  color: var(--coast-eta-basis);
+  font-weight: normal;
+}
+
 .panel-column {
   position: absolute;
   top: 0.75rem;

@@ -9,7 +9,7 @@ import {
 import type { HouseholdProfile } from "./householdProfile";
 import type { OfficialAlert } from "./officialAlerts";
 import type { Routes } from "./routeGrid";
-import { FAKE_REGION } from "./fakeNodeState";
+import { FAKE_REGION, FORT_MYERS_REGION } from "./fakeNodeState";
 import type { FloodRisk } from "./nodeState";
 
 const HOME = { lat: 29.65, lon: -82.32 };
@@ -526,5 +526,61 @@ describe("with a Wave ETA", () => {
     const result = plan({ wave: null, openShelterIds: ["near-plain"] });
     expect(result.lines.join(" ")).not.toContain("min walk");
     expect(result.lines.join(" ")).not.toContain("above the river");
+  });
+});
+
+describe("on a coast", () => {
+  const coastShelter = (id: string, lat: number): Shelter => ({
+    id,
+    name: id,
+    pos: [lat, -82.32],
+    special_needs: false,
+    pet_friendly: false,
+  });
+  const low = coastShelter("low", 29.651);
+  const high = coastShelter("high", 29.66);
+  // The ring lies around `low` (29.651) only.
+  const lowGround = {
+    features: [
+      {
+        geometry: {
+          type: "Polygon" as const,
+          coordinates: [
+            [
+              [-82.321, 29.6505],
+              [-82.319, 29.6505],
+              [-82.319, 29.6515],
+              [-82.321, 29.6515],
+              [-82.321, 29.6505],
+            ] as [number, number][],
+          ],
+        },
+      },
+    ],
+  };
+  const coastPlan = (overrides: Partial<Parameters<typeof evacuationPlan>[0]> = {}) =>
+    plan({
+      region: FORT_MYERS_REGION,
+      hazard: "storm_surge",
+      pack: pack({ shelters: [low, high], floodProne: lowGround }),
+      openShelterIds: ["low", "high"],
+      ...overrides,
+    });
+
+  test("a Shelter inside the Flood-Prone Area is not offered, even with no Water ETA", () => {
+    expect(coastPlan().shelter).toBe(high);
+    expect(coastPlan({ openShelterIds: ["low"] }).shelter).toBeNull();
+    expect(coastPlan({ openShelterIds: ["low"] }).lines).toContain(
+      "No open Shelter outside the Flood-Prone Area. Follow official sources.",
+    );
+  });
+
+  test("the Water ETA sets which Shelters can be reached in time", () => {
+    // `high` is 1.1 km away: a 24 min walk.
+    expect(coastPlan({ wave: wave(60) }).shelter).toBe(high);
+    const tooLate = coastPlan({ wave: wave(28) });
+    expect(tooLate.shelter).toBeNull();
+    expect(tooLate.outOfReachShelter).toBe(high);
+    expect(tooLate.lines.join(" ")).not.toContain("low");
   });
 });

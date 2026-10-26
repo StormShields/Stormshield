@@ -5,6 +5,7 @@ export const FAKE_REGION: Region = {
   name: "nepal",
   label: "Bhote Koshi valley, Nepal",
   water_type: "river",
+  storm_surge: null,
   time_zone: "Asia/Kathmandu",
   display_units: {
     water_level: "cm",
@@ -25,6 +26,7 @@ export const FORT_MYERS_REGION: Region = {
   name: "fort-myers",
   label: "Fort Myers Beach and Estero Bay, Florida",
   water_type: "coast",
+  storm_surge: { rising_window_s: 900, high_level_cm: 182.88 },
   time_zone: "America/New_York",
   display_units: {
     water_level: "ft",

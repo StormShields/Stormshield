@@ -183,6 +183,7 @@ function nearestFittingShelter(
   routes: Routes | null,
   rerouting: Rerouting | null,
   wave: WaveWindow | null,
+  coast: boolean,
 ): NearestShelter {
   const open = pack.shelters.filter((shelter) => openShelterIds.includes(shelter.id));
   if (open.length === 0) {
@@ -205,21 +206,31 @@ function nearestFittingShelter(
       lines: ["No open Shelter matches this household. Follow official sources."],
     };
   }
+  const outsideFloodProneArea = (shelter: Shelter) =>
+    !inFloodProneArea({ lat: shelter.pos[0], lon: shelter.pos[1] }, pack.floodProne);
+  // On a coast the land below the flood line is where the water goes: no Shelter there is offered,
+  // wave or not.
+  const usable = coast ? fitting.filter(outsideFloodProneArea) : fitting;
+  if (usable.length === 0) {
+    return {
+      shelter: null,
+      route: null,
+      lines: ["No open Shelter outside the Flood-Prone Area. Follow official sources."],
+    };
+  }
   const secondsLeft = wave ? secondsUntil(wave) : 0;
   const reachable = wave
-    ? fitting.filter(
+    ? usable.filter(
         (shelter) =>
-          !inFloodProneArea({ lat: shelter.pos[0], lon: shelter.pos[1] }, pack.floodProne) &&
+          outsideFloodProneArea(shelter) &&
           walkingSeconds(profile.home, shelter.pos) < secondsLeft - SAFETY_MARGIN_SECONDS,
       )
-    : fitting;
+    : usable;
   if (wave && reachable.length === 0) {
-    const byDistance = [...fitting].sort(
+    const byDistance = [...usable].sort(
       (a, b) => distanceKm(profile.home, a.pos) - distanceKm(profile.home, b.pos),
     );
-    const outOfReachShelter = byDistance.find(
-      (shelter) => !inFloodProneArea({ lat: shelter.pos[0], lon: shelter.pos[1] }, pack.floodProne),
-    );
+    const outOfReachShelter = byDistance.find(outsideFloodProneArea);
     const closest = outOfReachShelter ?? byDistance[0];
     const highGround = highGroundNear(profile.home, pack.highGround);
     const [nearestHighGround] = highGround;
@@ -383,6 +394,7 @@ export function evacuationPlan({
     routes,
     rerouting,
     wave,
+    region?.water_type === "coast",
   );
   return {
     ...plan,

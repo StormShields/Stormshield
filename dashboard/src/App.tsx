@@ -29,6 +29,8 @@ import { TopBar } from "./TopBar";
 import { blockedRoadLines, roadNear } from "./rerouting";
 import { useBlockedRoads } from "./useBlockedRoads";
 import { useCachePack } from "./useCachePack";
+import { useCoastWaterEta } from "./useCoastWaterEta";
+import { useGroundHeightCm } from "./groundHeight";
 import { useEventClock } from "./useEventClock";
 import { useReadingTrends } from "./readingTrends";
 import { useContactNotes, useLevelRises } from "./useMarkerEvents";
@@ -123,10 +125,19 @@ export function App() {
     (thisNode ? { lat: thisNode.position[0], lon: thisNode.position[1] } : null);
   const eventT = eventClock.clock?.event_t ?? null;
   const arrival = river && waveHome && waveArrival(river, waveHome, riverWarnings);
+  const onCoast = region?.water_type === "coast";
+  const groundCm = useGroundHeightCm(
+    onCoast ? waveHome : null,
+    cachePack?.basemap?.terrain.zooms ?? null,
+  );
+  const coastEta = useCoastWaterEta({ region, home: waveHome, groundCm, nodes, eventT });
+  // A coast ETA that has arrived hands the plan a wave expected now.
   const planWave =
     arrival && arrival.kind === "expected" && eventT !== null
       ? { arrivalAt: arrival.at, eventT }
-      : null;
+      : coastEta && eventT !== null
+        ? { arrivalAt: coastEta.kind === "expected" ? coastEta.at : eventT, eventT }
+        : null;
   const waveKm = river && eventT !== null ? waveFrontKm(river, riverWarnings, eventT) : null;
   const [acknowledged, acknowledge] = useAcknowledgedWarnings();
   const plan = evacuationPlan({
@@ -276,6 +287,7 @@ export function App() {
       exampleHome={example !== null}
       handOff={!phone && profile === null}
       waveArrival={arrival}
+      coastEta={coastEta}
       eventT={eventT}
       shelterStatusConfirmedAt={unreachable ? (lastAnswer?.at ?? null) : null}
       panel={panel("plan")}

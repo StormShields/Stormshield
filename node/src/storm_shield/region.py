@@ -297,6 +297,16 @@ class Region(_Strict):
         """What the Region's water can do: a river means a flash flood, a coast a storm surge."""
         return "flash_flood" if isinstance(self.water, River) else "storm_surge"
 
+    def _storm_surge_summary(self) -> "StormSurgeSummary | None":
+        rules = self.rules.flood_warning
+        if not isinstance(rules, CoastFloodWarningRules):
+            return None
+        surge = rules.storm_surge
+        return StormSurgeSummary(
+            rising_window_s=surge.rising_window_s,
+            high_level_cm=surge.high_level.cm,
+        )
+
     def has_alert_source(self, tag: str) -> bool:
         return any(source.tag == tag for source in self.official_alert_sources)
 
@@ -305,10 +315,18 @@ class Region(_Strict):
             name=self.name,
             label=self.label,
             water_type=self.water.type,
+            storm_surge=self._storm_surge_summary(),
             time_zone=self.time_zone,
             display_units=self.display_units,
             official_alert_sources=self.official_alert_sources,
         )
+
+
+class StormSurgeSummary(BaseModel):
+    """The coast thresholds a Viewer needs to work out its own Water ETA, in centimetres."""
+
+    rising_window_s: int
+    high_level_cm: float
 
 
 class RegionSummary(BaseModel):
@@ -317,6 +335,8 @@ class RegionSummary(BaseModel):
     name: str
     label: str
     water_type: Literal["river", "coast"]
+    # Only a coast Region has one.
+    storm_surge: StormSurgeSummary | None
     time_zone: str
     display_units: DisplayUnits
     official_alert_sources: list[AlertSource]

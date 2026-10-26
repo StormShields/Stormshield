@@ -76,6 +76,8 @@
   --countdown-far: var(--ink-50);
   --countdown-soon: var(--amber-400);
   --countdown-now: var(--red-300);
+  --coast-eta-basis: var(--text-secondary);
+  --coast-eta-at-ground: var(--countdown-now);
   --contact-lost: var(--ink-300);
   --stale: var(--ink-400);
   --scrim: color-mix(in srgb, var(--ink-black) 60%, transparent);
