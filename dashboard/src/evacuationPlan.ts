@@ -76,8 +76,9 @@ export type EvacuationPlan = {
 };
 
 export const OFFICIAL_LINE = "Evacuation decisions come from official sources.";
-const HIGHER_GROUND_LINE =
-  "No Shelter you can reach in time. Get to higher ground, away from the river, now.";
+// A coast has no river: the water, not a wave, is what is coming.
+const higherGroundLine = (coast: boolean) =>
+  `No Shelter you can reach in time. Get to higher ground, away from the ${coast ? "water" : "river"}, now.`;
 
 // When the wave reaches home, on the Event clock (Unix seconds), and what the clock says now.
 export type WaveWindow = { arrivalAt: number; eventT: number };
@@ -119,13 +120,16 @@ function walkingSeconds(from: Home, to: LatLon): number {
 
 const minutesRoundedUp = (seconds: number) => Math.ceil(seconds / 60);
 
-function waveWords(secondsLeft: number): string {
-  return secondsLeft > 0 ? `wave in ${minutesRoundedUp(secondsLeft)} min` : "wave expected now";
+function waveWords(secondsLeft: number, coast: boolean): string {
+  const noun = coast ? "water" : "wave";
+  return secondsLeft > 0
+    ? `${noun} in ${minutesRoundedUp(secondsLeft)} min`
+    : `${noun} expected now`;
 }
 
-function walkAndWave(home: Home, shelter: Shelter, secondsLeft: number): string {
+function walkAndWave(home: Home, shelter: Shelter, secondsLeft: number, coast: boolean): string {
   const walk = minutesRoundedUp(walkingSeconds(home, shelter.pos));
-  return `${walk} min walk, ${waveWords(secondsLeft)}.`;
+  return `${walk} min walk, ${waveWords(secondsLeft, coast)}.`;
 }
 
 export function highGroundLabel(climbM: number, walkMinutes: number): string {
@@ -240,8 +244,8 @@ function nearestFittingShelter(
       highGround,
       route: null,
       lines: [
-        `Nearest Shelter ${closest.name}: ${walkAndWave(profile.home, closest, secondsLeft)}`,
-        HIGHER_GROUND_LINE,
+        `Nearest Shelter ${closest.name}: ${walkAndWave(profile.home, closest, secondsLeft, coast)}`,
+        higherGroundLine(coast),
         ...(nearestHighGround
           ? [
               `Nearest high ground: ${nearestHighGround.point.name}, ${highGroundLabel(
@@ -264,10 +268,11 @@ function nearestFittingShelter(
     })
     .sort(byRoadThenStraightLine);
   const [nearest] = candidates;
-  const rerouted = rerouting && reroutedPlan(profile, pack, reachable, nearest, rerouting, wave);
+  const rerouted =
+    rerouting && reroutedPlan(profile, pack, reachable, nearest, rerouting, wave, coast);
   if (rerouted) return rerouted;
   const lines = [describe(nearest, wave !== null)];
-  if (wave) lines.push(walkAndWave(profile.home, nearest.shelter, secondsLeft));
+  if (wave) lines.push(walkAndWave(profile.home, nearest.shelter, secondsLeft, coast));
   if (nearest.route) {
     lines.push("The route is the shortest by road and ignores flooding and road closures.");
   }
@@ -283,6 +288,7 @@ function reroutedPlan(
   nearest: Candidate,
   { graph, blocked }: Rerouting,
   wave: WaveWindow | null,
+  coast: boolean,
 ): { shelter: Shelter | null; route: LatLon[] | null; lines: string[] } | null {
   const affected = nearest.route
     ? routeIsAffected(nearest.route, graph, blocked, pack.floodProne)
@@ -312,7 +318,7 @@ function reroutedPlan(
   }
   const [best] = reached;
   const lines = [describe(best, wave !== null)];
-  if (wave) lines.push(walkAndWave(profile.home, best.shelter, secondsUntil(wave)));
+  if (wave) lines.push(walkAndWave(profile.home, best.shelter, secondsUntil(wave), coast));
   if (blocked.length > 0) {
     lines.push(`Rerouted around ${blocked.length} blocked road${blocked.length === 1 ? "" : "s"}.`);
   }

@@ -583,4 +583,18 @@ describe("on a coast", () => {
     expect(tooLate.outOfReachShelter).toBe(high);
     expect(tooLate.lines.join(" ")).not.toContain("low");
   });
+
+  test("speaks of the water, not a wave or a river", () => {
+    const tooLate = coastPlan({ wave: wave(28) });
+    expect(tooLate.lines).toContain("Nearest Shelter high: 24 min walk, water in 28 min.");
+    expect(tooLate.lines).toContain(
+      "No Shelter you can reach in time. Get to higher ground, away from the water, now.",
+    );
+    const now = coastPlan({ wave: wave(0) });
+    expect(now.lines).toContain("Nearest Shelter high: 24 min walk, water expected now.");
+    expect(coastPlan({ wave: wave(60) }).lines.join(" ")).toContain(
+      "24 min walk, water in 60 min.",
+    );
+    expect(tooLate.lines.join(" ")).not.toMatch(/wave|river/);
+  });
 });

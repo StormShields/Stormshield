@@ -112,7 +112,9 @@ afterEach(() => {
 
 async function openPlan() {
   render(<App />);
-  await screen.findByText(/level/i, undefined, { timeout: 100 }).catch(() => {});
+  // The first poll must be heard before the test moves the clock, or a slow machine hears only the
+  // second reading and there is no rate yet.
+  await screen.findByText("porch");
   await waitFor(() =>
     expect(screen.getByRole("button", { name: "Expand Evacuation Plan" })).toBeVisible(),
   );
