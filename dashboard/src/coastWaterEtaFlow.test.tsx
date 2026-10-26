@@ -69,7 +69,8 @@ function stubNode() {
     }
     if (url.startsWith("/api/cache-pack/files/elevation/")) {
       elevationRequests.push(url);
-      return new Response(new Blob(["tile"]));
+      // A string body: jsdom's Blob has no stream(), which Node 22's Response needs.
+      return new Response("tile");
     }
     return new Response(null, { status: 404 });
   });
