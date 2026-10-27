@@ -53,6 +53,7 @@ def test_nepals_region_holds_what_the_app_used_to_hard_wire() -> None:
     rules = region.rules.flood_warning
     assert isinstance(rules, FloodWarningRules)
     assert region.hazard == "flash_flood"
+    assert region.summary().storm_surge is None
     assert region.time_zone == "Asia/Kathmandu"
     assert (rules.flash_flood.surge_rise.cm, rules.flash_flood.surge_window_s) == (300, 60)
     assert (rules.flash_flood.elevated_level.cm, rules.flash_flood.high_level.cm) == (300, 600)
@@ -173,6 +174,10 @@ def test_fort_myers_is_a_coast_region_read_in_feet_and_miles() -> None:
     assert all(shelter.height_above_river_m is None for shelter in region.shelters)
     assert region.high_ground == []
     assert region.summary().water_type == "coast"
+    surge = region.summary().storm_surge
+    assert surge is not None
+    assert surge.rising_window_s == 900
+    assert surge.flood_prone_below_cm == pytest.approx(9 * 30.48)
     # The Hub runs in a Shelter, which is dry ground where people gather.
     assert region.hub_site.pos in [shelter.pos for shelter in region.shelters]
 

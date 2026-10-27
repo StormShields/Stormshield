@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 
 import { agoWords } from "./agoWords";
+import type { CoastWaterEta } from "./coastWaterEta";
+import { CoastWaterEtaLine } from "./CoastWaterEtaLine";
 import { JoinCard } from "./JoinCard";
 import { Panel, type PanelControl } from "./Panel";
 import type { EvacuationPlan } from "./evacuationPlan";
@@ -32,6 +34,7 @@ export function EvacuationPlanPanel({
   exampleHome,
   handOff,
   waveArrival,
+  coastEta,
   eventT,
   shelterStatusConfirmedAt,
   panel,
@@ -42,6 +45,8 @@ export function EvacuationPlanPanel({
   // The projected Hub has no household of its own: it hands the plan to a phone.
   handOff: boolean;
   waveArrival: WaveArrival | null;
+  // The coast Region's Water ETA; the river's is `waveArrival`.
+  coastEta: CoastWaterEta | null;
   eventT: number | null;
   // Set only while the Node is unreachable: when its last answer arrived.
   shelterStatusConfirmedAt: number | null;
@@ -56,6 +61,7 @@ export function EvacuationPlanPanel({
         </p>
       )}
       <WaveEtaLine arrival={waveArrival} eventT={eventT} />
+      {region && <CoastWaterEtaLine eta={coastEta} eventT={eventT} units={region.display_units} />}
       {plan.risk && (
         <div className={`plan-risk ${plan.risk.level}`}>
           <h3>Flood Risk: {LEVEL_WORDS[plan.risk.level]}</h3>
