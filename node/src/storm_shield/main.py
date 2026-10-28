@@ -44,11 +44,18 @@ from storm_shield.node_registry import (
     SignUp,
 )
 from storm_shield.official_alert import HeardOfficialAlerts, OfficialAlert
+from storm_shield.official_gauge import (
+    NOAA_TIMEOUT_SECONDS,
+    HeardOfficialGauges,
+    OfficialGaugeLevel,
+    read_noaa_level,
+)
 from storm_shield.reading_publisher import ReadingPublisher
 from storm_shield.reading_store import NodeSnapshot, ReadingStore
 from storm_shield.region import (
     Coast,
     Hazard,
+    OfficialGauge,
     Region,
     RegionSummary,
     load_region,
@@ -95,6 +102,17 @@ class SandboxState(BaseModel):
     label: Literal["SIMULATED"] = "SIMULATED"
 
 
+class OfficialGaugeState(BaseModel):
+    """An Official Gauge of the Region with the newest level this Node has heard; None before any."""
+
+    agency: str
+    station: str
+    label: str
+    pos: tuple[float, float]
+    level_m: float | None
+    observed: int | None
+
+
 class NodeState(BaseModel):
     id: str
     name: str
@@ -108,6 +126,7 @@ class NodeState(BaseModel):
     nodes: list[NodeEntry]
     official_alerts: list[OfficialAlert]
     community_warnings: list[CommunityWarning]
+    official_gauges: list[OfficialGaugeState]
 
 
 class OpenShelters(BaseModel):
@@ -176,6 +195,17 @@ def _region_of(settings: Settings, cache_pack: CachePack) -> Region:
     return load_region(region_path(settings.region))
 
 
+def _gauge_state(gauge: OfficialGauge, level: OfficialGaugeLevel | None) -> OfficialGaugeState:
+    return OfficialGaugeState(
+        agency=gauge.agency,
+        station=gauge.station,
+        label=gauge.label,
+        pos=gauge.pos,
+        level_m=level.level_m if level else None,
+        observed=level.observed if level else None,
+    )
+
+
 def create_app(
     settings: Settings,
     mesh: Mesh,
@@ -184,6 +214,7 @@ def create_app(
     tile_source: httpx.Client | None = None,
     internet_source: httpx.Client | None = None,
     weather_source: httpx.Client | None = None,
+    gauge_source: httpx.Client | None = None,
     sandbox: SandboxControls | None = None,
     region: Region | None = None,
 ) -> FastAPI:
@@ -197,6 +228,7 @@ def create_app(
     pack_source = pack_source or httpx.Client(
         timeout=DOWNLOAD_TIMEOUT_SECONDS, follow_redirects=True
     )
+    gauge_source = gauge_source or httpx.Client(timeout=NOAA_TIMEOUT_SECONDS)
     tile_source = tile_source or httpx.Client(timeout=TILE_TIMEOUT_SECONDS)
     internet = InternetConnection(
         internet_source or httpx.Client(timeout=CONNECTIVITY_TIMEOUT_SECONDS)
@@ -336,6 +368,36 @@ def create_app(
         if status:
             announce_shelters(status)
 
+    official_gauges = HeardOfficialGauges(region.official_gauges)
+
+    def hear_official_gauge(_: str, message: Message) -> None:
+        if isinstance(message, OfficialGaugeLevel):
+            official_gauges.hear(message)
+
+    def announce_gauge_level(level: OfficialGaugeLevel) -> None:
+        # The Hub does not hear its own broadcasts, so it keeps the level itself.
+        official_gauges.hear(level)
+        try:
+            mesh.publish(level)
+        except Exception:
+            # The Hub already shows it, and the next repeat sends it again.
+            logger.exception("could not announce the level of NOAA station %s", level.station)
+
+    def poll_official_gauges() -> None:
+        """Ask NOAA for every gauge's latest level; one station failing leaves the others."""
+        for gauge in region.official_gauges:
+            try:
+                level = read_noaa_level(gauge_source, gauge)
+            except httpx.HTTPError as error:
+                logger.warning("could not read NOAA station %s: %s", gauge.station, error)
+                continue
+            if level:
+                announce_gauge_level(level)
+
+    def repeat_official_gauges() -> None:
+        for level in official_gauges.all_newest():
+            announce_gauge_level(level)
+
     heard_registry = HeardRegistry()
     sign_up_pressed = threading.Event()
 
@@ -450,6 +512,7 @@ def create_app(
     mesh.subscribe(hear_event_clock)
     mesh.subscribe(hear_official_alert)
     mesh.subscribe(hear_community_warning)
+    mesh.subscribe(hear_official_gauge)
     mesh.subscribe(hear_shelter_status)
     mesh.subscribe(hear_registry)
     mesh.subscribe(hear_sign_up)
@@ -525,6 +588,24 @@ def create_app(
                 except Exception:
                     logger.exception("could not repeat the Shelter status")
 
+        async def keep_polling_official_gauges() -> None:
+            while True:
+                try:
+                    # Offline there is nothing to ask; the Mesh keeps the last level meanwhile.
+                    if internet.status == "online":
+                        await asyncio.to_thread(poll_official_gauges)
+                except Exception:
+                    logger.exception("could not poll the Official Gauges")
+                await asyncio.sleep(settings.gauge_poll_seconds)
+
+        async def keep_repeating_official_gauges() -> None:
+            while True:
+                await asyncio.sleep(settings.gauge_repeat_seconds)
+                try:
+                    repeat_official_gauges()
+                except Exception:
+                    logger.exception("could not repeat the Official Gauges")
+
         async def keep_repeating_registry() -> None:
             while True:
                 await asyncio.sleep(settings.registry_repeat_seconds)
@@ -578,6 +659,8 @@ def create_app(
         ]
         if settings.role == "hub":
             tasks.append(asyncio.create_task(keep_repeating_shelter_status()))
+            tasks.append(asyncio.create_task(keep_polling_official_gauges()))
+            tasks.append(asyncio.create_task(keep_repeating_official_gauges()))
             tasks.append(asyncio.create_task(keep_repeating_registry()))
             tasks.append(asyncio.create_task(keep_repeating_warnings()))
             tasks.append(asyncio.create_task(keep_repeating_event_clock()))
@@ -620,6 +703,10 @@ def create_app(
             ],
             official_alerts=official_alerts.shown_at(event_clock.current(clock())),
             community_warnings=heard_warnings.shown_at(event_clock.current(clock())),
+            official_gauges=[
+                _gauge_state(gauge, official_gauges.newest(gauge))
+                for gauge in region.official_gauges
+            ],
         )
 
     @app.post("/api/registry/signup")
