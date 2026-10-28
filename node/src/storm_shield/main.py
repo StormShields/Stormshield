@@ -339,6 +339,7 @@ def create_app(
             # The Hub does not hear its own broadcasts, so it keeps the warning itself.
             heard_warnings.hear(warning)
             # A measured speed updates a warning the team was already emailed about.
+            # A Live Hub only warns from real readings, so its email is never a rehearsal.
             if flood_email and warning.measured is None:
                 flood_email.send_for(warning, rehearsal=event.state != "stopped" and not live)
             try:

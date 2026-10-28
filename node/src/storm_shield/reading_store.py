@@ -62,7 +62,7 @@ class StoreSnapshot:
             for node in self.nodes
         )
 
-    def real_only(self) -> "StoreSnapshot":
+    def _real_only(self) -> "StoreSnapshot":
         """The same snapshot without the Nodes whose latest reading is simulated."""
         real_ids = {node.id for node in self.nodes if not node.simulated}
         return StoreSnapshot(
@@ -72,7 +72,7 @@ class StoreSnapshot:
 
     def as_seen_by(self, registered_ids: Collection[str]) -> "StoreSnapshot":
         """What a dashboard and the rules should see: real Nodes alone while live, else everything."""
-        return self.real_only() if self.is_live(registered_ids) else self
+        return self._real_only() if self.is_live(registered_ids) else self
 
 
 class ReadingStore:
