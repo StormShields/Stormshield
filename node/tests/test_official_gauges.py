@@ -124,8 +124,9 @@ def test_an_official_gauge_never_changes_flood_risk(
     meshed_nodes: MeshedNodes, tmp_path: Path
 ) -> None:
     _start(meshed_nodes, tmp_path)
-    before = meshed_nodes["porch"].get("/api/state").json()["flood_risk"]
+    before = meshed_nodes["porch"].get("/api/state").json()
     meshed_nodes.announce_official_gauge(_level(1_000, level_m=9.0))
-    after = meshed_nodes["porch"].get("/api/state").json()["flood_risk"]
+    after = meshed_nodes["porch"].get("/api/state").json()
     assert _gauges(meshed_nodes["porch"])[0]["level_m"] == 9.0
-    assert after == before
+    for field in ("flood_risk", "community_warnings"):
+        assert after[field] == before[field]
