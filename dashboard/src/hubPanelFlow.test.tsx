@@ -12,12 +12,15 @@ const SHELTERS = [
 let openIds: string[];
 let postedBodies: unknown[];
 let refusal: string | null;
+let live: boolean;
 // Polls wait on this before answering, so a test can leave one in flight.
 let heldPolls: Promise<void>;
 
 function stubNode(role: "hub" | "sensor") {
   const answers: Record<string, unknown> = {
-    "/api/state": fakeNodeState({ role }),
+    "/api/state": fakeNodeState({ role, live }),
+    "/api/replay": { state: "stopped" },
+    "/api/replay/events": { events: [{ id: "bhote-koshi", label: "Bhote Koshi 2026" }] },
     "/api/cache-pack": { available: true, manifest: null },
     "/api/cache-pack/files/shelters.json": SHELTERS,
     "/api/cache-pack/files/flood_prone.geojson": { type: "FeatureCollection", features: [] },
@@ -62,6 +65,7 @@ beforeEach(() => {
   openIds = ["test-gym", "far-hall"];
   postedBodies = [];
   refusal = null;
+  live = false;
   heldPolls = Promise.resolve();
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
@@ -173,4 +177,30 @@ test("a refused change is shown in the panel and leaves the list as it was", asy
     "Could not close Far Hall: unknown Shelter 'far-hall'",
   );
   expect(within(panel).getAllByText("Open")).toHaveLength(2);
+});
+
+test("a Live Hub's Replay tab explains why no Replay can play, and the controls return after", async () => {
+  live = true;
+  stubNode("hub");
+  render(<App />);
+  expandPanel("Evacuation Plan");
+  fireEvent.click(await screen.findByRole("button", { name: "Hub" }));
+  const panel = screen.getByRole("dialog", { name: "Hub Panel" });
+  fireEvent.click(within(panel).getByRole("tab", { name: "Replay" }));
+
+  expect(
+    await within(panel).findByText("Live Sensors are reporting, so no Replay can play."),
+  ).toBeVisible();
+  expect(within(panel).queryByLabelText("Event")).toBeNull();
+  expect(within(panel).queryByRole("button", { name: "Start" })).toBeNull();
+  expect(within(panel).queryByText("REPLAY")).toBeNull();
+
+  live = false;
+  stubNode("hub");
+  await act(() => vi.advanceTimersByTimeAsync(5000));
+
+  expect(await within(panel).findByRole("button", { name: "Start" })).toBeVisible();
+  expect(within(panel).getByLabelText("Event")).toBeVisible();
+  expect(within(panel).getByText("REPLAY")).toBeVisible();
+  expect(within(panel).queryByText(/no Replay can play/)).toBeNull();
 });

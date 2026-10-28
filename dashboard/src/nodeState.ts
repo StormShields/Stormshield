@@ -95,6 +95,8 @@ export type NodeState = {
   sandbox: { label: "SIMULATED" } | null;
   region: Region;
   hazard: Hazard;
+  // The Node's own verdict that real Sensors are reporting; the dashboard never re-derives it.
+  live: boolean;
   flood_risk: FloodRisk;
   nodes: NodeSnapshot[];
   official_alerts: OfficialAlert[];
