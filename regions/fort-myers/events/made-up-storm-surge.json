@@ -1,0 +1,143 @@
+{
+  "id": "made-up-storm-surge",
+  "label": "Made-up storm surge at Fort Myers Beach",
+  "hazard": "storm_surge",
+  "real": false,
+  "note": "Hand-written to test the network on a surge that never happened. Every level and weather value is invented.",
+  "date": "2030-09-15",
+  "utc_offset": "-04:00",
+  "start": "06:00:00",
+  "end": "12:00:00",
+  "start_unix": 1915696800,
+  "rate": 30,
+  "sources": {},
+  "phases": [
+    {
+      "id": "calm",
+      "at": "06:00:00",
+      "label": "Calm"
+    },
+    {
+      "id": "rising",
+      "at": "07:30:00",
+      "label": "Water starts to rise"
+    },
+    {
+      "id": "peak",
+      "at": "10:00:00",
+      "label": "Surge peaks"
+    }
+  ],
+  "internet_cue": {
+    "at": "08:30:00"
+  },
+  "official_alerts": [],
+  "surface": {
+    "datum": "NAVD88",
+    "unit": "m",
+    "stations": [
+      {
+        "id": "fmb-pier",
+        "label": "Fort Myers Beach Pier (made up)",
+        "pos": [
+          26.4507,
+          -81.9533
+        ],
+        "series": [
+          [
+            0,
+            0.2
+          ],
+          [
+            3600,
+            0.35
+          ],
+          [
+            7200,
+            1.0
+          ],
+          [
+            10800,
+            1.9
+          ],
+          [
+            14400,
+            2.5
+          ],
+          [
+            18000,
+            2.2
+          ],
+          [
+            21600,
+            1.2
+          ]
+        ]
+      },
+      {
+        "id": "cape-coral",
+        "label": "Cape Coral Fishing Pier (made up)",
+        "pos": [
+          26.5416,
+          -81.9505
+        ],
+        "series": [
+          [
+            0,
+            0.2
+          ],
+          [
+            3600,
+            0.3
+          ],
+          [
+            7200,
+            0.8
+          ],
+          [
+            10800,
+            1.5
+          ],
+          [
+            14400,
+            2.0
+          ],
+          [
+            18000,
+            1.8
+          ],
+          [
+            21600,
+            1.0
+          ]
+        ]
+      }
+    ]
+  },
+  "weather": [
+    {
+      "t": 0,
+      "rain_mmh": 1,
+      "soil_pct": 60,
+      "pressure_hpa": 1008
+    },
+    {
+      "t": 7200,
+      "rain_mmh": 8,
+      "soil_pct": 75,
+      "pressure_hpa": 995
+    },
+    {
+      "t": 14400,
+      "rain_mmh": 20,
+      "soil_pct": 90,
+      "pressure_hpa": 975
+    },
+    {
+      "t": 21600,
+      "rain_mmh": 5,
+      "soil_pct": 92,
+      "pressure_hpa": 990
+    }
+  ]
+}

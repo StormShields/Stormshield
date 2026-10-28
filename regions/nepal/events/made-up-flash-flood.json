@@ -1,0 +1,147 @@
+{
+  "id": "made-up-flash-flood",
+  "label": "Made-up flash flood on the Bhote Koshi",
+  "hazard": "flash_flood",
+  "real": false,
+  "note": "Hand-written to test the network on a flood that never happened. Every level and weather value is invented.",
+  "date": "2030-07-10",
+  "utc_offset": "+05:45",
+  "start": "12:00:00",
+  "end": "13:00:00",
+  "start_unix": 1909894500,
+  "rate": 30,
+  "sources": {},
+  "phases": [
+    {
+      "id": "calm",
+      "at": "12:00:00",
+      "label": "Calm"
+    },
+    {
+      "id": "surge",
+      "at": "12:10:00",
+      "label": "Surge starts down the valley"
+    }
+  ],
+  "internet_cue": {
+    "at": "12:20:00"
+  },
+  "official_alerts": [],
+  "surface": {
+    "unit": "m",
+    "stations": [
+      {
+        "id": "s0",
+        "label": "Upper gauge (made up)",
+        "river_km": -12.2,
+        "series": [
+          [
+            0,
+            0.6
+          ],
+          [
+            540,
+            0.7
+          ],
+          [
+            600,
+            4.2
+          ],
+          [
+            629,
+            7.5
+          ]
+        ]
+      },
+      {
+        "id": "s1",
+        "label": "Rasuwagadhi gauge (made up)",
+        "river_km": 3.4,
+        "series": [
+          [
+            0,
+            0.8
+          ],
+          [
+            840,
+            0.9
+          ],
+          [
+            900,
+            4.5
+          ],
+          [
+            929,
+            8.0
+          ]
+        ]
+      },
+      {
+        "id": "s2",
+        "label": "Syabrubesi gauge (made up)",
+        "river_km": 14.6,
+        "series": [
+          [
+            0,
+            1.5
+          ],
+          [
+            1200,
+            1.7
+          ],
+          [
+            1260,
+            5.0
+          ],
+          [
+            1289,
+            9.6
+          ]
+        ]
+      },
+      {
+        "id": "s3",
+        "label": "Betrawati gauge (made up)",
+        "river_km": 54.0,
+        "series": [
+          [
+            0,
+            2.1
+          ],
+          [
+            3000,
+            2.4
+          ],
+          [
+            3060,
+            6.0
+          ],
+          [
+            3089,
+            8.8
+          ]
+        ]
+      }
+    ]
+  },
+  "weather": [
+    {
+      "t": 0,
+      "rain_mmh": 3,
+      "soil_pct": 80,
+      "pressure_hpa": 1005
+    },
+    {
+      "t": 1800,
+      "rain_mmh": 6,
+      "soil_pct": 85,
+      "pressure_hpa": 1002
+    },
+    {
+      "t": 3600,
+      "rain_mmh": 3,
+      "soil_pct": 84,
+      "pressure_hpa": 1004
+    }
+  ]
+}
