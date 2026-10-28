@@ -186,8 +186,9 @@ def build(region_dir: Path, output: Path, work_dir: Path, client: httpx.Client) 
             "or drop them"
         )
 
-    if events:
-        first_day, last_day = weather_days([event for event, _ in events.values()])
+    real_events = [event for event, _ in events.values() if event.real]
+    if real_events:
+        first_day, last_day = weather_days(real_events)
         print(f"reading the weather of {first_day} to {last_day}", flush=True)
         weather = build_weather_replay(
             client, region_dir, sources.weather, bbox, first_day, last_day

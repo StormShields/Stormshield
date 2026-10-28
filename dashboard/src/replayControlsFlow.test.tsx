@@ -13,8 +13,8 @@ const INTERNET_CUE = REPLAY_START + 50 * 60;
 
 const EVENTS = {
   events: [
-    { id: "bhote-koshi-2026", label: "Bhote Koshi flood" },
-    { id: "made-up-flood", label: "A made-up flood" },
+    { id: "bhote-koshi-2026", label: "Bhote Koshi flood", real: true },
+    { id: "made-up-flood", label: "A made-up flood", real: false },
   ],
 };
 const MADE_UP_PHASES = [{ id: "only", label: "The only phase", event_t: REPLAY_START }];
@@ -164,7 +164,7 @@ test("the picker lists the Region's Events, and the picked one is what Start pla
     within(picker)
       .getAllByRole("option")
       .map((option) => option.textContent),
-  ).toEqual(["Bhote Koshi flood", "A made-up flood"]);
+  ).toEqual(["Bhote Koshi flood", "A made-up flood (made up)"]);
   fireEvent.change(picker, { target: { value: "made-up-flood" } });
   fireEvent.click(await within(panel).findByRole("button", { name: "The only phase" }));
   await vi.waitFor(() =>
