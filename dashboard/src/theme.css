@@ -47,6 +47,11 @@
   --official-ink: var(--blue-950);
   --official-tag: var(--blue-800);
   --official-tag-ink: var(--paper-50);
+  /* the Official Gauge marker: paper-white like every official source, and square where a Node is round */
+  --official-gauge-fill: var(--official-bg);
+  --official-gauge-ink: var(--official-ink);
+  --official-gauge-size: 16px;
+  --official-gauge-radius: 3px;
   --community-warning: var(--violet-300);
   --flood-prone: var(--slate-400);
   --danger: var(--red-300);

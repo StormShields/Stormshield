@@ -395,6 +395,7 @@ export function App() {
             shelter={plan.shelter}
             outOfReachShelter={plan.outOfReachShelter}
             highGround={plan.highGround}
+            officialGauges={lastAnswer?.state.official_gauges ?? []}
             route={shows("route") ? plan.route : null}
             panelRoom={panelRoom}
             draftHome={panelOpen ? draftHome : null}

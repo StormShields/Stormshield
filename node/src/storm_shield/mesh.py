@@ -11,6 +11,7 @@ from storm_shield.community_reading import CommunityReading, Position
 from storm_shield.community_warning import CommunityWarning
 from storm_shield.node_registry import NodeRegistryMessage, SignUp
 from storm_shield.official_alert import OfficialAlert
+from storm_shield.official_gauge import OfficialGaugeLevel
 from storm_shield.replay import ReplayClockMessage
 from storm_shield.shelter_status import ShelterStatus
 
@@ -21,6 +22,7 @@ Message = (
     | ShelterStatus
     | ReplayClockMessage
     | OfficialAlert
+    | OfficialGaugeLevel
     | CommunityWarning
 )
 

@@ -72,6 +72,18 @@ type NodeStatus = "online" | "mesh_only";
 // Where this Node stands with the Hub; the Hub itself is always registered.
 export type Registration = "unverified" | "waiting" | "registered";
 
+// A government water-level station of the Region, with the newest level this Node has heard from
+// the Hub; `level_m` is metres in the Region's datum and null until the Hub has sent one.
+export type OfficialGauge = {
+  agency: string;
+  station: string;
+  label: string;
+  pos: [number, number];
+  level_m: number | null;
+  // Unix seconds, when the agency measured it.
+  observed: number | null;
+};
+
 // The answer of GET /api/state: one consistent instant of this Node's view of the Mesh.
 export type NodeState = {
   id: string;
@@ -88,4 +100,5 @@ export type NodeState = {
   official_alerts: OfficialAlert[];
   // Only warnings whose Hub signature this Node verified.
   community_warnings: CommunityWarning[];
+  official_gauges: OfficialGauge[];
 };

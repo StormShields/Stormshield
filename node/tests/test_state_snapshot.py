@@ -169,6 +169,7 @@ def test_the_state_holds_exactly_these_keys(
         "nodes",
         "official_alerts",
         "community_warnings",
+        "official_gauges",
     }
 
 

@@ -7,6 +7,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { addBasemap, baseStyle, lineCollection, setOverlay } from "./basemap";
 import { HATCH_IMAGE, hatchImage, readMapColors, type MapColors } from "./mapStyle";
 import { MapMarker } from "./MapMarker";
+import type { OfficialGauge } from "./nodeState";
+import { officialGaugeLabel } from "./officialGauges";
 import { useRegion } from "./RegionContext";
 import { regionClockTime } from "./regionTime";
 import {
@@ -212,6 +214,8 @@ type Props = {
   outOfReachShelter: Shelter | null;
   // Hand-placed hillside spots, given only while the plan says to get to higher ground (D-45).
   highGround: HighGroundPin[];
+  // Government gauges, drawn apart from Nodes: they never count toward Flood Risk.
+  officialGauges: OfficialGauge[];
   route: LatLon[] | null;
   // Pixels at each edge that open Panels cover.
   panelRoom: { left: number; right: number };
@@ -266,6 +270,7 @@ export function NodeMap({
   shelter,
   outOfReachShelter,
   highGround,
+  officialGauges,
   route,
   panelRoom,
   draftHome,
@@ -644,6 +649,22 @@ export function NodeMap({
             </MapMarker>
           );
         })}
+      {map &&
+        region &&
+        officialGauges.map((gauge) => (
+          <MapMarker
+            key={`${gauge.agency}:${gauge.station}`}
+            map={map}
+            lat={gauge.pos[0]}
+            lon={gauge.pos[1]}
+            className="official-gauge-marker"
+          >
+            <span className="official-gauge-pin" aria-hidden="true" />
+            <span className="map-label official-gauge-label">
+              {officialGaugeLabel(gauge, region.display_units, region.time_zone)}
+            </span>
+          </MapMarker>
+        ))}
       {map &&
         highGround.map(({ point, walkMinutes, nearest }) => (
           <MapMarker

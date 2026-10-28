@@ -1,6 +1,7 @@
 import time
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 from fixture_pack import SHELTERS, build_nepal_pack
 from httpx import Response
@@ -11,7 +12,7 @@ LIBRARY = "test-library"
 TWO_SHELTERS = [*SHELTERS, {**SHELTERS[0], "id": LIBRARY, "name": "Test Library"}]
 
 
-def _start_hub(meshed_nodes: MeshedNodes, tmp_path: Path, **options: float) -> None:
+def _start_hub(meshed_nodes: MeshedNodes, tmp_path: Path, **options: Any) -> None:
     pack = build_nepal_pack(shelters=TWO_SHELTERS)
     meshed_nodes.start_hub((tmp_path, pack), **options)
 

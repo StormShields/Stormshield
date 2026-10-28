@@ -316,6 +316,32 @@ button:disabled {
   white-space: nowrap;
 }
 
+/* Square and paper-white where a Node is a round glowing dot, so no one reads it as a Community Reading. */
+.official-gauge-marker {
+  display: grid;
+  place-items: center;
+}
+
+.official-gauge-pin {
+  width: var(--official-gauge-size);
+  height: var(--official-gauge-size);
+  border: 2px solid var(--official-gauge-ink);
+  border-radius: var(--official-gauge-radius);
+  background: var(--official-gauge-fill);
+  transform: rotate(45deg);
+}
+
+.official-gauge-label {
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--official-gauge-ink);
+  border-radius: var(--official-gauge-radius);
+  background: var(--official-gauge-fill);
+  color: var(--official-gauge-ink);
+  font-size: 0.7rem;
+  font-weight: normal;
+  white-space: nowrap;
+}
+
 /* Smaller than a Shelter pin so the two are never confused; cyan only on the one the plan names. */
 .high-ground-pin {
   display: grid;
