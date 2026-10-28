@@ -291,6 +291,7 @@ def create_app(
 
     def keep_reading(sender: str, reading: CommunityReading) -> None:
         store.record(sender, reading, clock())
+        stop_replay_if_live()
         warn_about_new_triggers()
 
     def hear_community_reading(sender: str, message: Message) -> None:
@@ -495,6 +496,21 @@ def create_app(
         for alert in due_official_alerts():
             if alert.id not in forwarded_alert_ids:
                 forward_official_alert(alert)
+
+    def hub_is_live() -> bool:
+        return store.snapshot(clock()).is_live(heard_registry.registered_ids())
+
+    def stop_replay_if_live() -> None:
+        """Hub only: real Sensors are reporting, so no Replay may run (paused counts as running)."""
+        if settings.role != "hub" or event_clock.current(clock()).state == "stopped":
+            return
+        if hub_is_live():
+            running = event_clock.current(clock())
+            announce_event_clock(
+                ReplayClockMessage(
+                    event=running.event, state="stopped", event_t=running.event_t, rate=running.rate
+                )
+            )
 
     def pause_at_the_end() -> None:
         """Hold the clock at the replay's end instead of letting it play on past the Event's end."""
@@ -886,8 +902,15 @@ def create_app(
                 raise HTTPException(status_code=422, detail=f"unknown Event {picked!r}")
             return event
 
+        def refuse_while_live() -> None:
+            if hub_is_live():
+                raise HTTPException(
+                    status_code=409, detail="live Sensors are reporting, so no Replay can play"
+                )
+
         @app.post("/api/replay/start")
         def start_replay(start: ReplayStart | None = None) -> ReplayClockMessage:
+            refuse_while_live()
             event = picked_or_clocked(start.event if start else None)
             return set_replay(event, "playing", event.start_unix)
 
@@ -900,6 +923,7 @@ def create_app(
 
         @app.post("/api/replay/resume")
         def resume_replay() -> ReplayClockMessage:
+            refuse_while_live()
             heard = event_clock.current(clock())
             if heard.state != "paused":
                 raise HTTPException(status_code=409, detail="the replay is not paused")
@@ -912,12 +936,14 @@ def create_app(
 
         @app.post("/api/replay/reset")
         def reset_replay(reset: ReplayStart | None = None) -> ReplayClockMessage:
+            refuse_while_live()
             # Paused at 08:30 rather than stopped, so every Node keeps following the Event clock.
             event = picked_or_clocked(reset.event if reset else None)
             return set_replay(event, "paused", event.start_unix)
 
         @app.post("/api/replay/jump")
         def jump_replay(jump: ReplayJump) -> ReplayClockMessage:
+            refuse_while_live()
             event = picked_or_clocked(jump.event)
             phase = next((p for p in event.phases if p.id == jump.phase), None)
             if phase is None:
