@@ -11,6 +11,7 @@ const GAUGE: OfficialGauge = {
   pos: [26.64778, -81.87111],
   level_m: 1,
   observed: Date.UTC(2022, 8, 28, 22, 30) / 1000,
+  mode: "live",
 };
 
 function stubNode(gauges: OfficialGauge[]) {
@@ -44,7 +45,7 @@ test("an Official Gauge is marked with its agency, station, level and time, apar
 });
 
 test("a gauge the Hub has not sent a level for says so", async () => {
-  stubNode([{ ...GAUGE, level_m: null, observed: null }]);
+  stubNode([{ ...GAUGE, level_m: null, observed: null, mode: null }]);
   render(<App />);
 
   expect(await screen.findByText("NOAA 8725520 · no level yet")).toBeVisible();

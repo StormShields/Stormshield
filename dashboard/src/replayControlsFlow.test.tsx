@@ -13,9 +13,14 @@ const INTERNET_CUE = REPLAY_START + 50 * 60;
 
 const EVENTS = {
   events: [
-    { id: "bhote-koshi-2026", label: "Bhote Koshi flood" },
-    { id: "made-up-flood", label: "A made-up flood" },
+    { id: "bhote-koshi-2026", label: "Bhote Koshi flood", reconstructed_stations: [] },
+    { id: "made-up-flood", label: "A made-up flood", reconstructed_stations: [] },
   ],
+};
+const IAN = {
+  id: "ian-2022",
+  label: "Hurricane Ian storm surge",
+  reconstructed_stations: ["Fort Myers Beach Pier", "Estero Bay at Coconut Point Marina"],
 };
 const MADE_UP_PHASES = [{ id: "only", label: "The only phase", event_t: REPLAY_START }];
 
@@ -223,5 +228,20 @@ test("the Sandbox Panel holds the same Replay controls", async () => {
   fireEvent.click(within(panel).getByRole("button", { name: "Start" }));
   await vi.waitFor(() =>
     expect(posted).toEqual([{ path: "/api/replay/start", body: { event: "made-up-flood" } }]),
+  );
+});
+
+test("the Replay says which stations' water is reconstructed, only for an Event that has some", async () => {
+  events = { events: [IAN, ...EVENTS.events] };
+  const panel = await openHubPanel();
+  const picker = await within(panel).findByRole("combobox", { name: "Event" });
+  expect(
+    await within(panel).findByRole("status", { name: "Reconstructed water" }),
+  ).toHaveTextContent(
+    "Reconstructed, not recorded: Fort Myers Beach Pier, Estero Bay at Coconut Point Marina",
+  );
+  fireEvent.change(picker, { target: { value: "made-up-flood" } });
+  await vi.waitFor(() =>
+    expect(within(panel).queryByRole("status", { name: "Reconstructed water" })).toBeNull(),
   );
 });

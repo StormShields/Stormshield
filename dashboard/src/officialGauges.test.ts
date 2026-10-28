@@ -10,6 +10,7 @@ const GAUGE: OfficialGauge = {
   level_m: 1,
   // 28 Sep 2022, 22:30 UTC: 18:30 in Eastern time.
   observed: Date.UTC(2022, 8, 28, 22, 30) / 1000,
+  mode: "live",
 };
 
 describe("officialGaugeLabel", () => {
@@ -19,10 +20,20 @@ describe("officialGaugeLabel", () => {
     ).toBe("NOAA 8725520 · 3.3 ft · 18:30 EDT");
   });
 
+  it("marks a recorded level REPLAY, so it is never mistaken for today's", () => {
+    expect(
+      officialGaugeLabel(
+        { ...GAUGE, mode: "replay" },
+        FORT_MYERS_REGION.display_units,
+        FORT_MYERS_REGION.time_zone,
+      ),
+    ).toBe("REPLAY · NOAA 8725520 · 3.3 ft · 18:30 EDT");
+  });
+
   it("says there is no level yet before the Hub has sent one", () => {
     expect(
       officialGaugeLabel(
-        { ...GAUGE, level_m: null, observed: null },
+        { ...GAUGE, level_m: null, observed: null, mode: null },
         FORT_MYERS_REGION.display_units,
         FORT_MYERS_REGION.time_zone,
       ),

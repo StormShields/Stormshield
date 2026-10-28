@@ -11,6 +11,7 @@ from pydantic import BaseModel, ValidationError, field_validator, model_validato
 
 from storm_shield.community_reading import Position, Reading
 from storm_shield.official_alert import AppliesTo, OfficialAlert
+from storm_shield.official_gauge import OfficialGaugeLevel
 from storm_shield.region import Hazard, LatLon, Region, RegionError, describe_problems, events_dir
 from storm_shield.river_line import METRES_PER_DEGREE_OF_LATITUDE
 
@@ -189,11 +190,31 @@ class ReplayedAlert(BaseModel):
 
     id: str
     at: str
+    # The day of `at`, when it is not the Event's: an alert already in force when the Event starts.
+    date: str | None = None
     # A tag from the Region's `official_alert_sources`.
     issuer: str
     headline: str
     applies_to: list[AppliesTo]
     source: str
+
+
+class ReplayedGauge(BaseModel):
+    """An Official Gauge's recorded levels, which play on the Event clock in place of its live ones."""
+
+    agency: Literal["NOAA"]
+    station: str
+    # (seconds after the Event starts, metres in the Region's datum)
+    series: list[tuple[int, float]]
+
+    @field_validator("series")
+    @classmethod
+    def _in_time_order(cls, series: list[tuple[int, float]]) -> list[tuple[int, float]]:
+        _require_increasing([at for at, _ in series], "a gauge's series")
+        return series
+
+    def level_at(self, elapsed: int) -> float:
+        return _interpolate(elapsed, [(at, (level,)) for at, level in self.series])[0]
 
 
 class Event(BaseModel):
@@ -215,6 +236,7 @@ class Event(BaseModel):
     phases: list[Phase]
     internet_cue: InternetCue
     official_alerts: list[ReplayedAlert]
+    official_gauges: list[ReplayedGauge] = []
     surface: RiverSurface | CoastSurface
     weather: list[WeatherKeyframe]
 
@@ -258,18 +280,44 @@ class Event(BaseModel):
 
     def official_alerts_due(self, event_t: int) -> list[OfficialAlert]:
         """The Official Alerts the Event clock has reached, in the mesh format."""
+        issued = {
+            alert.id: f"{alert.date or self.date}T{alert.at}{self.utc_offset}"
+            for alert in self.official_alerts
+        }
         return [
             OfficialAlert(
                 id=alert.id,
                 source=alert.issuer,
                 mode="replay",
-                issued=f"{self.date}T{alert.at}{self.utc_offset}",
+                issued=issued[alert.id],
                 headline=alert.headline,
                 applies_to=alert.applies_to,
                 url=self.sources[alert.source],
             )
             for alert in self.official_alerts
-            if self.event_t_at(alert.at) <= event_t
+            if int(datetime.fromisoformat(issued[alert.id]).timestamp()) <= event_t
+        ]
+
+    def reconstructed_station_labels(self) -> list[str]:
+        """The stations whose series is another station's curve scaled, not a record."""
+        return [
+            station.label
+            for station in self.surface.stations
+            if isinstance(station, CoastStation) and station.reconstructed
+        ]
+
+    def official_gauge_levels_at(self, event_t: int) -> list[OfficialGaugeLevel]:
+        """What each recorded Official Gauge reads at this Event time, in the mesh format."""
+        elapsed = event_t - self.start_unix
+        return [
+            OfficialGaugeLevel(
+                agency=gauge.agency,
+                station=gauge.station,
+                level_m=round(gauge.level_at(elapsed), 3),
+                observed=event_t,
+                mode="replay",
+            )
+            for gauge in self.official_gauges
         ]
 
     def readings_at(self, spot: SensorSpot, event_t: int, timestamp: datetime) -> list[Reading]:

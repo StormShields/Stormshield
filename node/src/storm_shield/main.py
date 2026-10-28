@@ -111,6 +111,8 @@ class OfficialGaugeState(BaseModel):
     pos: tuple[float, float]
     level_m: float | None
     observed: int | None
+    # `replay` is a recorded level played on the Event clock, never a live reading.
+    mode: Literal["live", "replay"] | None
 
 
 class NodeState(BaseModel):
@@ -172,6 +174,8 @@ class ReplayStart(BaseModel):
 class ReplayEventSummary(BaseModel):
     id: str
     label: str
+    # Stations whose water is another station's curve scaled, not a record; the Replay says so.
+    reconstructed_stations: list[str]
 
 
 class ReplayEvents(BaseModel):
@@ -204,6 +208,7 @@ def _gauge_state(gauge: OfficialGauge, level: OfficialGaugeLevel | None) -> Offi
         pos=gauge.pos,
         level_m=level.level_m if level else None,
         observed=level.observed if level else None,
+        mode=level.mode if level else None,
     )
 
 
@@ -389,8 +394,17 @@ def create_app(
             # The Hub already shows it, and the next repeat sends it again.
             logger.exception("could not announce the level of NOAA station %s", level.station)
 
+    def announce_replayed_gauge_levels() -> None:
+        """While an Event plays, its recorded gauges stand in for NOAA's live levels."""
+        heard = event_clock.current(clock())
+        if heard.state != "stopped":
+            for level in clocked_event().official_gauge_levels_at(heard.event_t):
+                announce_gauge_level(level)
+
     def poll_official_gauges() -> None:
         """Ask NOAA for every gauge's latest level; one station failing leaves the others."""
+        if event_clock.current(clock()).state != "stopped":
+            return
         for gauge in region.official_gauges:
             try:
                 level = read_noaa_level(gauge_source, gauge)
@@ -664,6 +678,7 @@ def create_app(
                 try:
                     # Alerts first, so the last one is sent before the clock stops at the end.
                     forward_newly_due_official_alerts()
+                    announce_replayed_gauge_levels()
                     pause_at_the_end()
                 except Exception:
                     logger.exception("could not follow the Event")
@@ -742,7 +757,14 @@ def create_app(
     @app.get("/api/replay/events")
     def replay_events() -> ReplayEvents:
         return ReplayEvents(
-            events=[ReplayEventSummary(id=event.id, label=event.label) for event in events.values()]
+            events=[
+                ReplayEventSummary(
+                    id=event.id,
+                    label=event.label,
+                    reconstructed_stations=event.reconstructed_station_labels(),
+                )
+                for event in events.values()
+            ]
         )
 
     @app.get("/api/replay/phases")

@@ -25,8 +25,10 @@ class OfficialGaugeLevel(BaseModel):
     station: str
     # Metres in the Region's datum, like a Community Reading's water level.
     level_m: float
-    # When the agency measured it, Unix seconds.
+    # When the agency measured it, Unix seconds; in a replay, the Event time it is played for.
     observed: int
+    # `replay` is a recorded level played on the Event clock, which the dashboard labels REPLAY.
+    mode: Literal["live", "replay"] = "live"
 
 
 class HeardOfficialGauges:
@@ -39,13 +41,22 @@ class HeardOfficialGauges:
         self._newest: dict[tuple[str, str], OfficialGaugeLevel] = {}
 
     def hear(self, level: OfficialGaugeLevel) -> None:
-        """Keep the level only if it is newer, so a repeated old copy can't undo a later one."""
+        """Keep the level only if it is newer, so a repeated old copy can't undo a later one.
+
+        A replayed level always stands, since the Event clock can be reset to an earlier time, and
+        so does a level of the other mode: a replay starting or ending changes what is shown.
+        """
         key = (level.agency, level.station)
         if key not in self._known:
             return
         with self._lock:
             held = self._newest.get(key)
-            if held is None or level.observed > held.observed:
+            if (
+                held is None
+                or level.mode != held.mode
+                or level.mode == "replay"
+                or level.observed > held.observed
+            ):
                 self._newest[key] = level
 
     def newest(self, gauge: OfficialGauge) -> OfficialGaugeLevel | None:
