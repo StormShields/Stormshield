@@ -78,3 +78,28 @@ def test_an_unknown_event_is_refused(meshed_nodes: MeshedNodes) -> None:
     hub = meshed_nodes["hub"]
     assert hub.post("/api/replay/start", json={"event": "nope"}).status_code == 422
     assert hub.get("/api/replay").json()["state"] == "stopped"
+
+
+def test_another_regions_event_is_refused(meshed_nodes: MeshedNodes) -> None:
+    meshed_nodes.start_hub()
+    hub = meshed_nodes["hub"]
+    refused = hub.post("/api/replay/start", json={"event": "hurricane-ian-2022"})
+    assert refused.status_code == 422
+    assert hub.get("/api/replay").json()["state"] == "stopped"
+
+
+def test_a_hub_ignores_an_event_clock_heard_on_the_mesh(meshed_nodes: MeshedNodes) -> None:
+    # A second Hub that trusts the identity `hub`, as a stray config would.
+    meshed_nodes.start("neighbour-hub", role="hub")
+    meshed_nodes.announce_replay("playing", 0, event="made-up-flood")
+    assert meshed_nodes["neighbour-hub"].get("/api/replay").json()["state"] == "stopped"
+
+
+def test_a_sensor_ignores_an_event_clock_for_an_event_it_does_not_hold(
+    meshed_nodes: MeshedNodes,
+) -> None:
+    meshed_nodes.start_sensor("porch")
+    meshed_nodes.announce_replay("paused", 5, event="made-up-flood")
+    meshed_nodes.announce_replay("playing", 0, event="hurricane-ian-2022")
+    kept = meshed_nodes["porch"].get("/api/replay").json()
+    assert (kept["event"], kept["state"], kept["event_t"]) == ("made-up-flood", "paused", 5)
