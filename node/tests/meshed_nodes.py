@@ -243,8 +243,11 @@ class MeshedNodes:
         river_km: float | None = None,
         leaving_out: Collection[str] = (),
         also: Collection[Measurement] = (),
+        simulated: bool = True,
     ) -> None:
         """Have a Node that is not running an app publish one reading with exactly these values.
+
+        `simulated=False` stands in for a Sensor with real hardware, which nothing produces yet.
 
         The Event's surface cannot make soil moisture rise while the water stays low, so this
         reaches the rules it cannot. `leaving_out` drops kinds the Node does not measure; `also` adds
@@ -257,7 +260,7 @@ class MeshedNodes:
                 node=sender,
                 seq=seq + 1,
                 t=int(self._now.timestamp()),
-                sim=True,
+                sim=simulated,
                 pos=Position(29.652, -82.324),
                 river_km=river_km,
                 m=[

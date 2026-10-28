@@ -122,6 +122,7 @@ class NodeState(BaseModel):
     sandbox: SandboxState | None
     region: RegionSummary
     hazard: Hazard
+    live: bool
     flood_risk: FloodRisk
     nodes: list[NodeEntry]
     official_alerts: list[OfficialAlert]
@@ -321,8 +322,12 @@ def create_app(
         """Hub only: warn about each Registered Node whose Hazard trigger has not been warned about."""
         if not hub_warnings:
             return
+        registered_ids = heard_registry.registered_ids()
         snapshot = store.snapshot(clock())
-        triggers = warning_triggers(snapshot.recent, heard_registry.registered_ids(), rules)
+        live = snapshot.is_live(registered_ids)
+        triggers = warning_triggers(
+            snapshot.as_seen_by(registered_ids).recent, registered_ids, rules
+        )
         event = event_clock.current(clock())
         now = int(clock().timestamp())
         # With no replay running the trigger fired now, on the Hub's own clock.
@@ -334,8 +339,9 @@ def create_app(
             # The Hub does not hear its own broadcasts, so it keeps the warning itself.
             heard_warnings.hear(warning)
             # A measured speed updates a warning the team was already emailed about.
+            # A Live Hub only warns from real readings, so its email is never a rehearsal.
             if flood_email and warning.measured is None:
-                flood_email.send_for(warning, rehearsal=event.state != "stopped")
+                flood_email.send_for(warning, rehearsal=event.state != "stopped" and not live)
             try:
                 mesh.publish(warning)
             except Exception:
@@ -691,8 +697,9 @@ def create_app(
 
     @app.get("/api/state")
     def node_state() -> NodeState:
-        snapshot = store.snapshot(clock())
         registered_ids = heard_registry.registered_ids()
+        full_snapshot = store.snapshot(clock())
+        snapshot = full_snapshot.as_seen_by(registered_ids)
         return NodeState(
             id=mesh.identity,
             name=settings.name,
@@ -702,6 +709,7 @@ def create_app(
             sandbox=SandboxState() if sandbox else None,
             region=region.summary(),
             hazard=region.hazard,
+            live=full_snapshot.is_live(registered_ids),
             flood_risk=flood_risk(snapshot.recent, registered_ids, rules),
             nodes=[
                 NodeEntry(
