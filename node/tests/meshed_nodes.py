@@ -147,11 +147,16 @@ class MeshedNodes:
         self._nodes.close()
 
     def announce_replay(
-        self, state: Literal["playing", "paused", "stopped"], event_t: int, *, sender: str = HUB
+        self,
+        state: Literal["playing", "paused", "stopped"],
+        event_t: int,
+        *,
+        sender: str = HUB,
+        event: str = "bhote-koshi-2026",
     ) -> None:
         """Have a Node that is not running an app publish one Event clock message."""
         self._hand_fed_mesh(sender).publish(
-            ReplayClockMessage(event="bhote-koshi-2026", state=state, event_t=event_t, rate=30)
+            ReplayClockMessage(event=event, state=state, event_t=event_t, rate=30)
         )
 
     def announce_shelters(self, ver: int, open_ids: list[str], *, sender: str = HUB) -> None:
