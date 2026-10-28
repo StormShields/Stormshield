@@ -455,7 +455,7 @@ def create_app(
             announce_registry(hub_registry.snapshot())
 
     def hear_event_clock(_: str, message: Message) -> None:
-        if isinstance(message, ReplayClockMessage):
+        if isinstance(message, ReplayClockMessage) and message.event in events:
             event_clock.hear(message, clock())
 
     def announce_event_clock(message: ReplayClockMessage) -> None:
@@ -515,7 +515,9 @@ def create_app(
             forward_official_alert(alert)
 
     mesh.subscribe(hear_community_reading)
-    mesh.subscribe(hear_event_clock)
+    if settings.role == "sensor":
+        # The Hub is the only source of the clock, so it never takes one from the Mesh.
+        mesh.subscribe(hear_event_clock)
     mesh.subscribe(hear_official_alert)
     mesh.subscribe(hear_community_warning)
     mesh.subscribe(hear_official_gauge)
