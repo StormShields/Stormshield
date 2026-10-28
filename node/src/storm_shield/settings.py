@@ -54,6 +54,12 @@ class Settings(BaseSettings):
     # How often the Hub repeats its Shelter status, so a Node that joined late or missed a packet
     # converges.
     shelter_repeat_seconds: float = 30
+    # How often the Hub asks NOAA for each Official Gauge's latest level while it is online; NOAA
+    # measures every 6 minutes.
+    gauge_poll_seconds: float = 360
+    # How often the Hub repeats the newest Official Gauge levels, so a Node that joined late or
+    # missed a packet still has them after the internet goes down.
+    gauge_repeat_seconds: float = 30
     # How often the Hub repeats the Node registry, so a Node that joined late or missed a packet
     # converges.
     registry_repeat_seconds: float = 30

@@ -12,6 +12,8 @@ from storm_shield.community_warning import CommunityWarning
 from storm_shield.mesh import InMemoryMesh, Message
 from storm_shield.node_registry import NodeRegistryMessage, RegisteredNode, SignUp
 from storm_shield.official_alert import OfficialAlert
+from storm_shield.official_gauge import OfficialGaugeLevel
+from storm_shield.region import Region
 from storm_shield.replay import ReplayClockMessage
 from storm_shield.sandbox import HUB, SimulatedNodes
 from storm_shield.shelter_status import ShelterStatus
@@ -19,6 +21,10 @@ from storm_shield.shelter_status import ShelterStatus
 
 def _no_internet(request: httpx.Request) -> httpx.Response:
     raise httpx.ConnectError("tests never reach Open-Meteo", request=request)
+
+
+def _internet_is_up(request: httpx.Request) -> httpx.Response:
+    return httpx.Response(204)
 
 
 def a_calm_day() -> list[Reading]:
@@ -52,6 +58,7 @@ class MeshedNodes:
         self,
         *names: str,
         cache_pack: tuple[Path, bytes] | None = None,
+        loaded_region: Region | None = None,
         **overrides: Any,
     ) -> None:
         """Start Nodes that trust `HUB`; with a (directory, zip) pair each already holds that pack."""
@@ -61,7 +68,7 @@ class MeshedNodes:
                 directory, pack = cache_pack
                 settings = settings.model_copy(update={"cache_pack_dir": directory / name})
                 CachePack(directory / name).install(pack)
-            self._nodes.start(settings)
+            self._nodes.start(settings, region=loaded_region)
 
     def start_sensor(
         self,
@@ -97,6 +104,8 @@ class MeshedNodes:
         replay_repeat_seconds: float = 10,
         alert_check_seconds: float = 0.02,
         warning_repeat_seconds: float = 10,
+        loaded_region: Region | None = None,
+        gauge_source: httpx.Client | None = None,
         **overrides: Any,
     ) -> None:
         """Start the Hub, whose identity is `HUB`, with its background loops running."""
@@ -116,7 +125,15 @@ class MeshedNodes:
             )
             CachePack(directory / HUB).install(pack)
         weather_source = httpx.Client(transport=httpx.MockTransport(_no_internet))
-        self._nodes.start(settings, running=True, weather_source=weather_source)
+        self._nodes.start(
+            settings,
+            running=True,
+            weather_source=weather_source,
+            region=loaded_region,
+            # Online, so a Hub given a `gauge_source` polls it; nothing else here asks the internet.
+            internet_source=httpx.Client(transport=httpx.MockTransport(_internet_is_up)),
+            **({"gauge_source": gauge_source} if gauge_source else {}),
+        )
 
     def data_dir(self, name: str) -> Path:
         """Where a Node keeps its saved files."""
@@ -168,6 +185,10 @@ class MeshedNodes:
     def announce_official_alert(self, alert: OfficialAlert, *, sender: str = HUB) -> None:
         """Have a Node that is not running an app publish one Official Alert."""
         self._hand_fed_mesh(sender).publish(alert)
+
+    def announce_official_gauge(self, level: OfficialGaugeLevel, *, sender: str = HUB) -> None:
+        """Have a Node that is not running an app publish one Official Gauge level."""
+        self._hand_fed_mesh(sender).publish(level)
 
     def announce_community_warning(self, warning: CommunityWarning, *, sender: str = HUB) -> None:
         """Have a Node that is not running an app publish one Community Warning."""
