@@ -1,5 +1,6 @@
 import threading
 from collections import deque
+from collections.abc import Collection
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
@@ -50,6 +51,28 @@ class StoreSnapshot:
 
     nodes: list[NodeSnapshot]
     recent: dict[str, list[CommunityReading]]
+
+    def is_live(self, registered_ids: Collection[str]) -> bool:
+        """Whether a Registered Node that is not Stale is sending a reading that is not simulated.
+
+        The one place that decides "live", so every Node filters the same Nodes as the Hub.
+        """
+        return any(
+            node.id in registered_ids and not node.stale and not node.simulated
+            for node in self.nodes
+        )
+
+    def real_only(self) -> "StoreSnapshot":
+        """The same snapshot without the Nodes whose latest reading is simulated."""
+        real_ids = {node.id for node in self.nodes if not node.simulated}
+        return StoreSnapshot(
+            nodes=[node for node in self.nodes if node.id in real_ids],
+            recent={node: readings for node, readings in self.recent.items() if node in real_ids},
+        )
+
+    def as_seen_by(self, registered_ids: Collection[str]) -> "StoreSnapshot":
+        """What a dashboard and the rules should see: real Nodes alone while live, else everything."""
+        return self.real_only() if self.is_live(registered_ids) else self
 
 
 class ReadingStore:

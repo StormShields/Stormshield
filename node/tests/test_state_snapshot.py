@@ -166,6 +166,7 @@ def test_the_state_holds_exactly_these_keys(
         "region",
         "hazard",
         "flood_risk",
+        "live",
         "nodes",
         "official_alerts",
         "community_warnings",
