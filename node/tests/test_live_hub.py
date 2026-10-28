@@ -144,3 +144,79 @@ def test_the_hub_stops_being_live_once_the_real_node_goes_stale(
     state = _state(meshed_nodes["hub"])
     assert state["live"] is False
     assert _listed(meshed_nodes["hub"]) == ["real", "sim"]
+
+
+def _replay(client: TestClient) -> dict[str, Any]:
+    return client.get("/api/replay").json()  # type: ignore[no-any-return]
+
+
+def _go_live(meshed_nodes: MeshedNodes) -> None:
+    meshed_nodes.start_hub()
+    _register(meshed_nodes, "real")
+    meshed_nodes.hear_from("real", simulated=False)
+
+
+def test_a_live_hub_refuses_to_start_resume_reset_or_jump(meshed_nodes: MeshedNodes) -> None:
+    _go_live(meshed_nodes)
+    hub = meshed_nodes["hub"]
+    phase = hub.get("/api/replay/phases").json()["phases"][0]["id"]
+
+    for path, body in [
+        ("/api/replay/start", None),
+        ("/api/replay/resume", None),
+        ("/api/replay/reset", None),
+        ("/api/replay/jump", {"phase": phase}),
+    ]:
+        answer = hub.post(path, json=body)
+        assert answer.status_code == 409, path
+        assert answer.json()["detail"] == "live Sensors are reporting, so no Replay can play"
+    assert _replay(hub)["state"] == "stopped"
+
+
+def test_a_live_hub_still_lists_events_allows_a_rate_change_and_refuses_pause(
+    meshed_nodes: MeshedNodes,
+) -> None:
+    _go_live(meshed_nodes)
+    hub = meshed_nodes["hub"]
+
+    assert hub.get("/api/replay/events").json()["events"]
+    assert hub.post("/api/replay/rate", json={"rate": 10}).status_code == 200
+    assert hub.post("/api/replay/pause").status_code == 409
+
+
+def test_a_playing_replay_stops_on_every_node_when_the_first_real_reading_arrives(
+    meshed_nodes: MeshedNodes,
+) -> None:
+    meshed_nodes.start_hub()
+    meshed_nodes.start("porch")
+    _register(meshed_nodes, "real")
+    assert meshed_nodes["hub"].post("/api/replay/start").status_code == 200
+    assert _replay(meshed_nodes["porch"])["state"] == "playing"
+
+    meshed_nodes.hear_from("real", simulated=False)
+
+    assert _replay(meshed_nodes["hub"])["state"] == "stopped"
+    assert _replay(meshed_nodes["porch"])["state"] == "stopped"
+
+
+def test_a_paused_replay_stops_the_same_way(meshed_nodes: MeshedNodes) -> None:
+    meshed_nodes.start_hub()
+    meshed_nodes.start("porch")
+    _register(meshed_nodes, "real")
+    assert meshed_nodes["hub"].post("/api/replay/reset").status_code == 200
+    assert _replay(meshed_nodes["porch"])["state"] == "paused"
+
+    meshed_nodes.hear_from("real", simulated=False)
+
+    assert _replay(meshed_nodes["hub"])["state"] == "stopped"
+    assert _replay(meshed_nodes["porch"])["state"] == "stopped"
+
+
+def test_start_works_again_once_the_last_real_node_goes_stale(meshed_nodes: MeshedNodes) -> None:
+    _go_live(meshed_nodes)
+    assert meshed_nodes["hub"].post("/api/replay/start").status_code == 409
+
+    meshed_nodes.advance(STALE_AFTER_SECONDS + 1)
+
+    assert meshed_nodes["hub"].post("/api/replay/start").status_code == 200
+    assert _replay(meshed_nodes["hub"])["state"] == "playing"
