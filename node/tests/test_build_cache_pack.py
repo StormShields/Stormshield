@@ -396,3 +396,18 @@ def test_the_flood_prone_area_stops_at_the_regions_height(tmp_path: Path) -> Non
 def test_a_shelter_inside_the_flood_prone_area_fails_the_build(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="Shelters inside the Flood-Prone Area: gym"):
         _build(tmp_path, _coast_region(tmp_path, shelter=LOW_GROUND))
+
+
+def test_a_made_up_events_keyframes_become_its_weather_in_the_pack(tmp_path: Path) -> None:
+    region_dir = _fixture_region(tmp_path)
+    for real_event in (region_dir / "events").glob("bhote-koshi-*.json"):
+        real_event.unlink()
+    made_up = json.loads((NEPAL / "events" / "made-up-flash-flood.json").read_text())
+
+    # NO_NETWORK refuses every request, so the build fetches no weather for a flood that never was.
+    pack = _build(tmp_path, region_dir)
+
+    packed = _json(pack, "events/made-up-flash-flood.json")
+    assert packed["real"] is False
+    assert packed["weather"] == made_up["weather"]
+    assert "weather_replay.json" not in pack.namelist()

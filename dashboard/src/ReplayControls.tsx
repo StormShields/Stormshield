@@ -5,7 +5,7 @@ import type { EventClockFeed } from "./useEventClock";
 import { usePolledJson } from "./usePolledJson";
 
 type ReplayEvents = {
-  events: { id: string; label: string; reconstructed_stations: string[] }[];
+  events: { id: string; label: string; real: boolean; reconstructed_stations: string[] }[];
 };
 type Phase = { id: string; label: string; event_t: number };
 type ReplayPhases = { phases: Phase[]; internet_cue_event_t: number };
@@ -98,7 +98,7 @@ export function ReplayControls({ eventClock }: { eventClock: EventClockFeed }) {
           >
             {replayEvents.events.map((event) => (
               <option key={event.id} value={event.id}>
-                {event.label}
+                {event.real ? event.label : `${event.label} (made up)`}
               </option>
             ))}
           </select>

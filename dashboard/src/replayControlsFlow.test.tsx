@@ -13,13 +13,19 @@ const INTERNET_CUE = REPLAY_START + 50 * 60;
 
 const EVENTS = {
   events: [
-    { id: "bhote-koshi-2026", label: "Bhote Koshi flood", reconstructed_stations: [] },
-    { id: "made-up-flood", label: "A made-up flood", reconstructed_stations: [] },
+    {
+      id: "bhote-koshi-2026",
+      label: "Bhote Koshi flood",
+      real: true,
+      reconstructed_stations: [],
+    },
+    { id: "made-up-flood", label: "A made-up flood", real: false, reconstructed_stations: [] },
   ],
 };
 const IAN = {
   id: "ian-2022",
   label: "Hurricane Ian storm surge",
+  real: true,
   reconstructed_stations: ["Fort Myers Beach Pier", "Estero Bay at Coconut Point Marina"],
 };
 const MADE_UP_PHASES = [{ id: "only", label: "The only phase", event_t: REPLAY_START }];
@@ -169,7 +175,7 @@ test("the picker lists the Region's Events, and the picked one is what Start pla
     within(picker)
       .getAllByRole("option")
       .map((option) => option.textContent),
-  ).toEqual(["Bhote Koshi flood", "A made-up flood"]);
+  ).toEqual(["Bhote Koshi flood", "A made-up flood (made up)"]);
   fireEvent.change(picker, { target: { value: "made-up-flood" } });
   fireEvent.click(await within(panel).findByRole("button", { name: "The only phase" }));
   await vi.waitFor(() =>

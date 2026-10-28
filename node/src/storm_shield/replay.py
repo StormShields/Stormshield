@@ -226,6 +226,8 @@ class Event(BaseModel):
     id: str
     label: str
     hazard: Hazard
+    # False for a hand-written Event that never happened; it is labelled as made up on screen.
+    real: bool
     date: str
     utc_offset: str
     start: str

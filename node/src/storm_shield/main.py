@@ -174,6 +174,7 @@ class ReplayStart(BaseModel):
 class ReplayEventSummary(BaseModel):
     id: str
     label: str
+    real: bool
     # Stations whose water is another station's curve scaled, not a record; the Replay says so.
     reconstructed_stations: list[str]
 
@@ -777,6 +778,7 @@ def create_app(
                 ReplayEventSummary(
                     id=event.id,
                     label=event.label,
+                    real=event.real,
                     reconstructed_stations=event.reconstructed_station_labels(),
                 )
                 for event in events.values()
