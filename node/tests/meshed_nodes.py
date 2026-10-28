@@ -147,11 +147,16 @@ class MeshedNodes:
         self._nodes.close()
 
     def announce_replay(
-        self, state: Literal["playing", "paused", "stopped"], event_t: int, *, sender: str = HUB
+        self,
+        state: Literal["playing", "paused", "stopped"],
+        event_t: int,
+        *,
+        sender: str = HUB,
+        event: str = "bhote-koshi-2026",
     ) -> None:
         """Have a Node that is not running an app publish one Event clock message."""
         self._hand_fed_mesh(sender).publish(
-            ReplayClockMessage(event="bhote-koshi-2026", state=state, event_t=event_t, rate=30)
+            ReplayClockMessage(event=event, state=state, event_t=event_t, rate=30)
         )
 
     def announce_shelters(self, ver: int, open_ids: list[str], *, sender: str = HUB) -> None:
@@ -238,8 +243,11 @@ class MeshedNodes:
         river_km: float | None = None,
         leaving_out: Collection[str] = (),
         also: Collection[Measurement] = (),
+        simulated: bool = True,
     ) -> None:
         """Have a Node that is not running an app publish one reading with exactly these values.
+
+        `simulated=False` stands in for a Sensor with real hardware, which nothing produces yet.
 
         The Event's surface cannot make soil moisture rise while the water stays low, so this
         reaches the rules it cannot. `leaving_out` drops kinds the Node does not measure; `also` adds
@@ -252,7 +260,7 @@ class MeshedNodes:
                 node=sender,
                 seq=seq + 1,
                 t=int(self._now.timestamp()),
-                sim=True,
+                sim=simulated,
                 pos=Position(29.652, -82.324),
                 river_km=river_km,
                 m=[

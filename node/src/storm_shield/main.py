@@ -122,6 +122,7 @@ class NodeState(BaseModel):
     sandbox: SandboxState | None
     region: RegionSummary
     hazard: Hazard
+    live: bool
     flood_risk: FloodRisk
     nodes: list[NodeEntry]
     official_alerts: list[OfficialAlert]
@@ -291,6 +292,7 @@ def create_app(
 
     def keep_reading(sender: str, reading: CommunityReading) -> None:
         store.record(sender, reading, clock())
+        stop_replay_if_live()
         warn_about_new_triggers()
 
     def hear_community_reading(sender: str, message: Message) -> None:
@@ -322,8 +324,12 @@ def create_app(
         """Hub only: warn about each Registered Node whose Hazard trigger has not been warned about."""
         if not hub_warnings:
             return
+        registered_ids = heard_registry.registered_ids()
         snapshot = store.snapshot(clock())
-        triggers = warning_triggers(snapshot.recent, heard_registry.registered_ids(), rules)
+        live = snapshot.is_live(registered_ids)
+        triggers = warning_triggers(
+            snapshot.as_seen_by(registered_ids).recent, registered_ids, rules
+        )
         event = event_clock.current(clock())
         now = int(clock().timestamp())
         # With no replay running the trigger fired now, on the Hub's own clock.
@@ -335,8 +341,9 @@ def create_app(
             # The Hub does not hear its own broadcasts, so it keeps the warning itself.
             heard_warnings.hear(warning)
             # A measured speed updates a warning the team was already emailed about.
+            # A Live Hub only warns from real readings, so its email is never a rehearsal.
             if flood_email and warning.measured is None:
-                flood_email.send_for(warning, rehearsal=event.state != "stopped")
+                flood_email.send_for(warning, rehearsal=event.state != "stopped" and not live)
             try:
                 mesh.publish(warning)
             except Exception:
@@ -450,7 +457,7 @@ def create_app(
             announce_registry(hub_registry.snapshot())
 
     def hear_event_clock(_: str, message: Message) -> None:
-        if isinstance(message, ReplayClockMessage):
+        if isinstance(message, ReplayClockMessage) and message.event in events:
             event_clock.hear(message, clock())
 
     def announce_event_clock(message: ReplayClockMessage) -> None:
@@ -491,6 +498,21 @@ def create_app(
             if alert.id not in forwarded_alert_ids:
                 forward_official_alert(alert)
 
+    def hub_is_live() -> bool:
+        return store.snapshot(clock()).is_live(heard_registry.registered_ids())
+
+    def stop_replay_if_live() -> None:
+        """Hub only: real Sensors are reporting, so no Replay may run (paused counts as running)."""
+        if settings.role != "hub" or event_clock.current(clock()).state == "stopped":
+            return
+        if hub_is_live():
+            running = event_clock.current(clock())
+            announce_event_clock(
+                ReplayClockMessage(
+                    event=running.event, state="stopped", event_t=running.event_t, rate=running.rate
+                )
+            )
+
     def pause_at_the_end() -> None:
         """Hold the clock at the replay's end instead of letting it play on past the Event's end."""
         event = event_clock.current(clock())
@@ -510,7 +532,9 @@ def create_app(
             forward_official_alert(alert)
 
     mesh.subscribe(hear_community_reading)
-    mesh.subscribe(hear_event_clock)
+    if settings.role == "sensor":
+        # The Hub is the only source of the clock, so it never takes one from the Mesh.
+        mesh.subscribe(hear_event_clock)
     mesh.subscribe(hear_official_alert)
     mesh.subscribe(hear_community_warning)
     mesh.subscribe(hear_official_gauge)
@@ -690,8 +714,9 @@ def create_app(
 
     @app.get("/api/state")
     def node_state() -> NodeState:
-        snapshot = store.snapshot(clock())
         registered_ids = heard_registry.registered_ids()
+        full_snapshot = store.snapshot(clock())
+        snapshot = full_snapshot.as_seen_by(registered_ids)
         return NodeState(
             id=mesh.identity,
             name=settings.name,
@@ -701,6 +726,7 @@ def create_app(
             sandbox=SandboxState() if sandbox else None,
             region=region.summary(),
             hazard=region.hazard,
+            live=full_snapshot.is_live(registered_ids),
             flood_risk=flood_risk(snapshot.recent, registered_ids, rules),
             nodes=[
                 NodeEntry(
@@ -880,8 +906,15 @@ def create_app(
                 raise HTTPException(status_code=422, detail=f"unknown Event {picked!r}")
             return event
 
+        def refuse_while_live() -> None:
+            if hub_is_live():
+                raise HTTPException(
+                    status_code=409, detail="live Sensors are reporting, so no Replay can play"
+                )
+
         @app.post("/api/replay/start")
         def start_replay(start: ReplayStart | None = None) -> ReplayClockMessage:
+            refuse_while_live()
             event = picked_or_clocked(start.event if start else None)
             return set_replay(event, "playing", event.start_unix)
 
@@ -894,6 +927,7 @@ def create_app(
 
         @app.post("/api/replay/resume")
         def resume_replay() -> ReplayClockMessage:
+            refuse_while_live()
             heard = event_clock.current(clock())
             if heard.state != "paused":
                 raise HTTPException(status_code=409, detail="the replay is not paused")
@@ -906,12 +940,14 @@ def create_app(
 
         @app.post("/api/replay/reset")
         def reset_replay(reset: ReplayStart | None = None) -> ReplayClockMessage:
+            refuse_while_live()
             # Paused at 08:30 rather than stopped, so every Node keeps following the Event clock.
             event = picked_or_clocked(reset.event if reset else None)
             return set_replay(event, "paused", event.start_unix)
 
         @app.post("/api/replay/jump")
         def jump_replay(jump: ReplayJump) -> ReplayClockMessage:
+            refuse_while_live()
             event = picked_or_clocked(jump.event)
             phase = next((p for p in event.phases if p.id == jump.phase), None)
             if phase is None:
