@@ -591,13 +591,21 @@ def create_app(
 
         async def keep_polling_official_gauges() -> None:
             while True:
+                online = False
                 try:
                     # Offline there is nothing to ask; the Mesh keeps the last level meanwhile.
-                    if internet.status == "online":
+                    online = internet.status == "online"
+                    if online:
                         await asyncio.to_thread(poll_official_gauges)
                 except Exception:
                     logger.exception("could not poll the Official Gauges")
-                await asyncio.sleep(settings.gauge_poll_seconds)
+                # Until the first connectivity check lands the status reads "mesh_only", so look
+                # again at the next check rather than leaving a fresh Hub without a level for a poll.
+                await asyncio.sleep(
+                    settings.gauge_poll_seconds
+                    if online
+                    else min(settings.gauge_poll_seconds, settings.internet_check_seconds)
+                )
 
         async def keep_repeating_official_gauges() -> None:
             while True:
