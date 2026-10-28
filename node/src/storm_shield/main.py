@@ -152,6 +152,7 @@ class ReplayStart(BaseModel):
 class ReplayEventSummary(BaseModel):
     id: str
     label: str
+    real: bool
 
 
 class ReplayEvents(BaseModel):
@@ -637,7 +638,9 @@ def create_app(
     @app.get("/api/replay/events")
     def replay_events() -> ReplayEvents:
         return ReplayEvents(
-            events=[ReplayEventSummary(id=event.id, label=event.label) for event in events.values()]
+            events=[ReplayEventSummary(id=event.id, label=event.label, real=event.real)
+                for event in events.values()
+            ]
         )
 
     @app.get("/api/replay/phases")

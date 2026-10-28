@@ -38,6 +38,7 @@ COAST_EVENT: dict[str, Any] = {
     "id": "coast-fixture",
     "label": "A made-up storm surge",
     "hazard": "storm_surge",
+    "real": False,
     "date": "2022-09-28",
     "utc_offset": "-04:00",
     "start": "06:00:00",
