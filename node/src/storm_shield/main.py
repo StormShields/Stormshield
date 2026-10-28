@@ -725,7 +725,8 @@ def create_app(
     @app.get("/api/replay/events")
     def replay_events() -> ReplayEvents:
         return ReplayEvents(
-            events=[ReplayEventSummary(id=event.id, label=event.label, real=event.real)
+            events=[
+                ReplayEventSummary(id=event.id, label=event.label, real=event.real)
                 for event in events.values()
             ]
         )
