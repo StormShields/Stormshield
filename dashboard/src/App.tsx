@@ -359,6 +359,7 @@ export function App() {
         )}
         {hubPanelOpen && (
           <HubPanel
+            live={state?.live ?? false}
             eventClock={eventClock}
             shelters={cachePack?.shelters ?? []}
             openShelterIds={openShelterIds}
