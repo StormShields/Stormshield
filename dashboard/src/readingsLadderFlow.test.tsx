@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 
 import { App } from "./App";
 import type { CommunityWarning } from "./communityWarnings";
-import { fakeNodeSnapshot, fakeNodeState } from "./fakeNodeState";
+import { fakeNodeSnapshot, nepalNodeState } from "./fakeNodeState";
 
 const SURGE_T = 1_787_716_020;
 
@@ -45,7 +45,7 @@ const WARNING: CommunityWarning = {
 
 function stubNode(nodes: ReturnType<typeof fakeNodeSnapshot>[], eventT = SURGE_T + 400) {
   const answers: Record<string, unknown> = {
-    "/api/state": fakeNodeState({
+    "/api/state": nepalNodeState({
       id: "hub",
       name: "hub",
       role: "hub",

@@ -7,6 +7,8 @@ from meshed_nodes import MeshedNodes
 from storm_shield import region
 from storm_shield.region import events_dir, region_path
 
+pytestmark = pytest.mark.usefixtures("nepal_region")
+
 
 @pytest.fixture(autouse=True)
 def two_events(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

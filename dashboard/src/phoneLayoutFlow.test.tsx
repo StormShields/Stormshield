@@ -1,13 +1,13 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 
 import { App } from "./App";
-import { fakeNodeSnapshot, fakeNodeState } from "./fakeNodeState";
+import { fakeNodeSnapshot, nepalNodeState } from "./fakeNodeState";
 import { setViewport } from "./fakeViewport";
 import type { NodeState } from "./nodeState";
 
 function stubNode(state: Partial<NodeState> = {}) {
   const answers: Record<string, unknown> = {
-    "/api/state": fakeNodeState({ nodes: [fakeNodeSnapshot("porch")], ...state }),
+    "/api/state": nepalNodeState({ nodes: [fakeNodeSnapshot("porch")], ...state }),
     "/api/cache-pack": { available: false, manifest: null },
     "/api/shelters": { open: [] },
     "/api/replay": { state: "paused", event_t: 1_787_700_000, rate: 30 },

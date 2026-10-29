@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 
 import { App } from "./App";
-import { fakeNodeSnapshot, fakeNodeState } from "./fakeNodeState";
+import { fakeNodeSnapshot, nepalNodeState } from "./fakeNodeState";
 import type { OfficialAlert } from "./officialAlerts";
 
 const NOTICE: OfficialAlert = {
@@ -72,7 +72,7 @@ beforeEach(() => {
     if (path === "/api/state") {
       if (nodeAnswer === "error") return new Response(null, { status: 503 });
       return Response.json(
-        fakeNodeState({
+        nepalNodeState({
           role: "hub",
           status: "online",
           flood_risk: {

@@ -15,8 +15,8 @@ from storm_shield.settings import Settings
 from storm_shield.weather_forecast import FILE_NAME
 from storm_shield.weather_grid import VARIABLES, grid_points
 
-# The box the default Region (Nepal) fills the grid over: 3 rows and 2 columns of points.
-REGION_BBOX = load_region(region_path("nepal")).bbox
+# The box the default Region (Fort Myers) fills the grid over.
+REGION_BBOX = load_region(region_path("fort-myers")).bbox
 HOURS = ["2026-10-17T00:00", "2026-10-17T01:00"]
 FORECAST_URL = "http://hub/api/weather/forecast"
 
@@ -91,7 +91,7 @@ def test_the_hub_fetches_the_regions_grid_and_serves_it_with_its_fetch_time(
     assert query["forecast_days"] == "7"
     assert forecast["times"] == [f"{hour}Z" for hour in HOURS]
     assert set(forecast["variables"]) == {"temperature_2m", "cloud_cover", "precipitation"}
-    assert forecast["grid"]["rows"] * forecast["grid"]["cols"] == 6
+    assert forecast["grid"]["rows"] * forecast["grid"]["cols"] == 4
     assert "wind_speed_unit" not in query
     assert forecast["fetched_at"]
     assert (tmp_path / FILE_NAME).is_file()

@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 
 import { App } from "./App";
 import type { CommunityWarning } from "./communityWarnings";
-import { FORT_MYERS_REGION, FAKE_REGION, fakeNodeSnapshot, fakeNodeState } from "./fakeNodeState";
+import { FAKE_REGION, NEPAL_REGION, fakeNodeSnapshot, fakeNodeState } from "./fakeNodeState";
 import type { NodeState } from "./nodeState";
 
 // 14:06 EDT on 28 Sep 2022.
@@ -35,7 +35,7 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 test("the Event clock tag reads in the Region's time zone with its label", async () => {
-  stubNode(fakeNodeState({ region: FORT_MYERS_REGION }), {
+  stubNode(fakeNodeState({ region: FAKE_REGION }), {
     v: 1,
     kind: "replay",
     state: "playing",
@@ -49,7 +49,7 @@ test("the Event clock tag reads in the Region's time zone with its label", async
 test("readings show in the Region's feet, inches per hour and inHg while the wire stays metric", async () => {
   stubNode(
     fakeNodeState({
-      region: FORT_MYERS_REGION,
+      region: FAKE_REGION,
       nodes: [
         fakeNodeSnapshot("bay", {
           measurements: {
@@ -70,7 +70,7 @@ test("readings show in the Region's feet, inches per hour and inHg while the wir
 test("a Nepal Region keeps metres of water in centimetres", async () => {
   stubNode(
     fakeNodeState({
-      region: FAKE_REGION,
+      region: NEPAL_REGION,
       nodes: [
         fakeNodeSnapshot("bay", { measurements: { water_level: { value: 1.5, unit: "m" } } }),
       ],
@@ -83,7 +83,7 @@ test("a Nepal Region keeps metres of water in centimetres", async () => {
 test("a Community Warning gives its distance in miles for a Fort Myers Region", async () => {
   stubNode(
     fakeNodeState({
-      region: FORT_MYERS_REGION,
+      region: FAKE_REGION,
       id: "porch",
       role: "sensor",
       community_warnings: [WARNING],
@@ -103,7 +103,7 @@ test("a Community Warning gives its distance in miles for a Fort Myers Region", 
 test("a coast Sensor that sends no water level reads as dry", async () => {
   stubNode(
     fakeNodeState({
-      region: FORT_MYERS_REGION,
+      region: FAKE_REGION,
       nodes: [
         fakeNodeSnapshot("inland", { measurements: { air_pressure: { value: 990, unit: "hPa" } } }),
       ],
@@ -117,7 +117,7 @@ test("a coast Sensor that sends no water level reads as dry", async () => {
 test("a real coast Sensor with no water level is not called dry, since it may have no gauge", async () => {
   stubNode(
     fakeNodeState({
-      region: FORT_MYERS_REGION,
+      region: FAKE_REGION,
       nodes: [
         fakeNodeSnapshot("pi", {
           simulated: false,
@@ -134,7 +134,7 @@ test("a real coast Sensor with no water level is not called dry, since it may ha
 test("a river Sensor off the river does not claim to be dry", async () => {
   stubNode(
     fakeNodeState({
-      region: FAKE_REGION,
+      region: NEPAL_REGION,
       nodes: [
         fakeNodeSnapshot("porch", { measurements: { air_pressure: { value: 990, unit: "hPa" } } }),
       ],

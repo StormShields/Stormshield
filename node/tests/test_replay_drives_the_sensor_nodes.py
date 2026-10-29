@@ -8,6 +8,8 @@ from meshed_nodes import MeshedNodes
 
 from storm_shield.timing import REPLAY_PUBLISH_EVERY_SECONDS
 
+pytestmark = pytest.mark.usefixtures("nepal_region")
+
 # 08:30 NPT on 26 Aug 2026, the first moment of the replay timeline.
 REPLAY_START = 1787712300
 RATE = 30

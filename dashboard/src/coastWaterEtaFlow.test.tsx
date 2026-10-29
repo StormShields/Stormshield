@@ -3,7 +3,7 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import { App } from "./App";
 import { expandPanel } from "./expandPanel";
 import { BASEMAP_MANIFEST_PARTS } from "./fakeBasemap";
-import { FAKE_REGION, FORT_MYERS_REGION, fakeNodeSnapshot, fakeNodeState } from "./fakeNodeState";
+import { NEPAL_REGION, FAKE_REGION, fakeNodeSnapshot, fakeNodeState } from "./fakeNodeState";
 import { STATE_POLL_MS } from "./useNodeState";
 
 const PROFILE_KEY = "storm-shield.household-profile";
@@ -16,7 +16,7 @@ const GROUND_PIXEL = [128, 1, 128, 255];
 let eventT: number;
 // What the shore Sensor reports, in metres; null for a Sensor with no water gauge reading.
 let levelM: number | null;
-let region: typeof FORT_MYERS_REGION;
+let region: typeof FAKE_REGION;
 let elevationRequests: string[];
 
 function stubNode() {
@@ -86,7 +86,7 @@ async function hear(at: number, metres: number | null) {
 beforeEach(() => {
   eventT = T;
   levelM = 0.5;
-  region = FORT_MYERS_REGION;
+  region = FAKE_REGION;
   elevationRequests = [];
   localStorage.setItem(
     PROFILE_KEY,
@@ -181,7 +181,7 @@ test("there is none when no Node reports a water level", async () => {
 });
 
 test("a river Region gets no coast ETA and reads no terrain", async () => {
-  region = { ...FAKE_REGION } as typeof FORT_MYERS_REGION;
+  region = { ...NEPAL_REGION } as typeof FAKE_REGION;
   await openPlan();
   await hear(T + 900, 0.6);
   await hear(T + 1800, 0.8);

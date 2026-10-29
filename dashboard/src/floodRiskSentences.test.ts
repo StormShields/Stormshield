@@ -1,10 +1,10 @@
-import { FAKE_REGION } from "./fakeNodeState";
+import { NEPAL_REGION } from "./fakeNodeState";
 import { reasonSentence, stormSignalSentence } from "./floodRiskSentences";
 import type { Region } from "./nodeState";
 import { sourceName, type OfficialAlert } from "./officialAlerts";
 
 const FLORIDA: Region = {
-  ...FAKE_REGION,
+  ...NEPAL_REGION,
   display_units: {
     water_level: "ft",
     rain_rate: "in/h",
@@ -32,7 +32,7 @@ test("a Surge sentence is worded for the Hazard and sized in the Region's unit",
 });
 
 test("the Storm Signal reads in the Region's pressure unit", () => {
-  expect(stormSignalSentence({ on: true, nodes: 2, pressure_hpa: 995 }, FAKE_REGION)).toBe(
+  expect(stormSignalSentence({ on: true, nodes: 2, pressure_hpa: 995 }, NEPAL_REGION)).toBe(
     "Low pressure: 995 hPa at 2 Nodes",
   );
   expect(stormSignalSentence({ on: true, nodes: 2, pressure_hpa: 1020 }, FLORIDA)).toBe(
@@ -43,7 +43,7 @@ test("the Storm Signal reads in the Region's pressure unit", () => {
 test("an Official Alert is credited to the Region's name for its source", () => {
   const alert = { source: "nws" } as OfficialAlert;
   expect(sourceName(FLORIDA, alert)).toBe("National Weather Service");
-  expect(sourceName(FAKE_REGION, { source: "district" } as OfficialAlert)).toBe(
+  expect(sourceName(NEPAL_REGION, { source: "district" } as OfficialAlert)).toBe(
     "District authorities",
   );
 });

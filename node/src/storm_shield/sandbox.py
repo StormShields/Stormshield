@@ -59,8 +59,11 @@ HUB_SITE = NodeSite(
 )
 # The Region's sensor sites, in the file's order: nearest the Hub first, because a Node's first
 # reading goes out as it joins and only reaches the Hub if the Nodes between are already there.
+# Named s0, s1, ...: the Region's site ids are long, and nine of them would not fit the one signed
+# packet a registry travels in.
 SENSOR_SITES = [
-    NodeSite(site.id, site.pos[0], site.pos[1], site.river_km) for site in _REGION.sensor_sites
+    NodeSite(f"s{number}", site.pos[0], site.pos[1], site.river_km)
+    for number, site in enumerate(_REGION.sensor_sites)
 ]
 
 
@@ -164,11 +167,13 @@ class Sandbox:
                 f"no Cache Pack at {pack}; build one with scripts/build-cache-pack.sh or drop --pack"
             )
         self._pack = pack
+        self._pack_bytes = b""
         self._stack = ExitStack()
         self.hub: FastAPI
         self.network: InMemoryNetwork
 
     def __enter__(self) -> Self:
+        self._pack_bytes = self._pack.read_bytes()
         with ExitStack() as setup:
             directory = Path(
                 setup.enter_context(TemporaryDirectory(prefix="storm-shield-sandbox-"))
@@ -181,8 +186,7 @@ class Sandbox:
             # Running starts a Sensor's loops, so it keeps publishing. All of them join before any
             # signs up: a Sensor out of the Hub's own range needs its neighbours to relay.
             sensors = {
-                site.name: nodes.start(_settings(nodes, site), running=True)
-                for site in SENSOR_SITES
+                site.name: _start_sensor(nodes, site, self._pack_bytes) for site in SENSOR_SITES
             }
             for name, sensor in sensors.items():
                 # An in-memory Node's id is its name.
@@ -201,23 +205,28 @@ class Sandbox:
     def _start_hub(self, nodes: SimulatedNodes) -> TestClient:
         settings = _settings(nodes, HUB_SITE, role="hub", dashboard_dir=BUILT_DASHBOARD.parent)
         try:
-            CachePack(settings.cache_pack_dir).install(self._pack.read_bytes())
+            CachePack(settings.cache_pack_dir).install(self._pack_bytes)
         except InvalidCachePack as error:
             raise SandboxError(f"{self._pack} is not a usable Cache Pack: {error}") from error
         river = CachePack(settings.cache_pack_dir).file("river.geojson")
         return nodes.start(
-            settings, sandbox=_Controls(nodes, json.loads(river.read_text()) if river else None)
+            settings,
+            sandbox=_Controls(
+                nodes, self._pack_bytes, json.loads(river.read_text()) if river else None
+            ),
         )
 
 
 class _Controls(SandboxControls):
     """What the Hub's Sandbox API shows and changes: the Sensors, the radio range, who hears whom.
 
-    `river` is the pack's river line, which tells a Sensor placed on the map its River km.
+    `pack` is what each Sensor holds, as if it had downloaded it from the Hub; `river` is its river
+    line, which tells a Sensor placed on the map its River km.
     """
 
-    def __init__(self, nodes: SimulatedNodes, river: dict[str, Any] | None) -> None:
+    def __init__(self, nodes: SimulatedNodes, pack: bytes, river: dict[str, Any] | None) -> None:
         self._nodes = nodes
+        self._pack = pack
         self._river = river
         # The API runs on a threadpool: a Sensor being added is half on the Mesh until it is done.
         self._lock = threading.RLock()
@@ -262,7 +271,7 @@ class _Controls(SandboxControls):
         with self._lock:
             name = f"s{next(self._numbers)}"
             site = NodeSite(name, spot.latitude, spot.longitude, self._river_km(spot))
-            self._nodes.start(_settings(self._nodes, site), running=True)
+            _start_sensor(self._nodes, site, self._pack)
             self._unregistered.add(name)
             try:
                 self._register_those_in_reach()
@@ -322,6 +331,14 @@ def _settings(nodes: SimulatedNodes, site: NodeSite, **overrides: Any) -> Settin
         hub_identity=HUB,
         **overrides,
     )
+
+
+def _start_sensor(nodes: SimulatedNodes, site: NodeSite, pack: bytes) -> TestClient:
+    """A running Sensor that already holds the Cache Pack: a coast Sensor reads its ground height
+    from the pack's terrain, and would stay dry until it had downloaded one."""
+    settings = _settings(nodes, site)
+    CachePack(settings.cache_pack_dir).install(pack)
+    return nodes.start(settings, running=True)
 
 
 def _register(sensor: TestClient, hub: TestClient, sensor_id: str) -> None:

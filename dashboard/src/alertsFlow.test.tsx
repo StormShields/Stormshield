@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 
 import { App } from "./App";
 import { expandPanel } from "./expandPanel";
-import { fakeNodeState } from "./fakeNodeState";
+import { nepalNodeState } from "./fakeNodeState";
 import type { OfficialAlert } from "./officialAlerts";
 
 const PROFILE_KEY = "storm-shield.household-profile";
@@ -52,7 +52,7 @@ const AROUND_HOME = {
 
 function stubNode(status: "online" | "mesh_only", officialAlerts: OfficialAlert[]) {
   const answers: Record<string, unknown> = {
-    "/api/state": fakeNodeState({ role: "sensor", status, official_alerts: officialAlerts }),
+    "/api/state": nepalNodeState({ role: "sensor", status, official_alerts: officialAlerts }),
     "/api/cache-pack": { available: true, manifest: null },
     "/api/cache-pack/files/shelters.json": [],
     "/api/cache-pack/files/flood_prone.geojson": AROUND_HOME,

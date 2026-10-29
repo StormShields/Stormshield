@@ -4,7 +4,7 @@ import { BASEMAP_MANIFEST_PARTS } from "./fakeBasemap";
 import { App } from "./App";
 import type { CommunityWarning } from "./communityWarnings";
 import { lastMap, sourceData } from "./fakeMaplibre";
-import { fakeNodeSnapshot, fakeNodeState } from "./fakeNodeState";
+import { fakeNodeSnapshot, nepalNodeState } from "./fakeNodeState";
 import { setReducedMotion } from "./fakeViewport";
 import { regionClockTime } from "./regionTime";
 
@@ -64,7 +64,7 @@ function stubNode({
   state?: "paused" | "playing";
 }) {
   const answers: Record<string, unknown> = {
-    "/api/state": fakeNodeState({
+    "/api/state": nepalNodeState({
       id: "porch",
       role: "sensor",
       community_warnings: warnings,

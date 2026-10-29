@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 
 import { App } from "./App";
-import { FORT_MYERS_REGION, fakeNodeState } from "./fakeNodeState";
+import { FAKE_REGION, fakeNodeState } from "./fakeNodeState";
 import type { OfficialGauge } from "./nodeState";
 
 const GAUGE: OfficialGauge = {
@@ -15,7 +15,7 @@ const GAUGE: OfficialGauge = {
 };
 
 function stubNode(gauges: OfficialGauge[]) {
-  const state = fakeNodeState({ region: FORT_MYERS_REGION, official_gauges: gauges });
+  const state = fakeNodeState({ region: FAKE_REGION, official_gauges: gauges });
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string) =>

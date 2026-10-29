@@ -10,6 +10,8 @@ from meshed_nodes import MeshedNodes
 from storm_shield.community_reading import Measurement
 from storm_shield.region import load_region, region_path
 
+pytestmark = pytest.mark.usefixtures("nepal_region")
+
 # A storm in three steps, as (pressure hPa, rain mm/h, water cm, soil %). The last is High from
 # heavy rain on rising water and stays under the Surge size.
 STORM_STEPS = [(990, 0, 100, 32), (985, 12, 350, 55), (980, 30, 390, 85)]

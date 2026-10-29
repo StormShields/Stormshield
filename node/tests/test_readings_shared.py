@@ -2,8 +2,11 @@ import time
 from collections.abc import Callable
 from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
 from meshed_nodes import MeshedNodes
+
+pytestmark = pytest.mark.usefixtures("nepal_region")
 
 # Where the Event file puts the Syabrubesi gauge; its level at the first moment is 1.5 m.
 S2_KM = 14.6

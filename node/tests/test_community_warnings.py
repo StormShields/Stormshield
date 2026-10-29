@@ -1,6 +1,7 @@
 import time
 from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
 from meshed_nodes import MeshedNodes
 
@@ -10,6 +11,8 @@ from storm_shield.community_warning import (
     MeasuredSpeed,
 )
 from storm_shield.replay import ReplayClockMessage
+
+pytestmark = pytest.mark.usefixtures("nepal_region")
 
 S0_RIVER_KM = -12.2
 

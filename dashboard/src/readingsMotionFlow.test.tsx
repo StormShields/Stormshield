@@ -1,7 +1,7 @@
 import { act, render, screen, within } from "@testing-library/react";
 
 import { App } from "./App";
-import { fakeNodeSnapshot, fakeNodeState } from "./fakeNodeState";
+import { fakeNodeSnapshot, nepalNodeState } from "./fakeNodeState";
 import { setReducedMotion } from "./fakeViewport";
 import { STATE_POLL_MS } from "./useNodeState";
 
@@ -22,7 +22,7 @@ beforeEach(() => {
   nodeOrder = ["zed", "barn", "porch", "attic"];
   vi.stubGlobal("fetch", async (path: string) => {
     if (path === "/api/state") {
-      return Response.json(fakeNodeState({ nodes: nodeOrder.map((id) => SNAPSHOTS[id]()) }));
+      return Response.json(nepalNodeState({ nodes: nodeOrder.map((id) => SNAPSHOTS[id]()) }));
     }
     return new Response(null, { status: 404 });
   });

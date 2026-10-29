@@ -1,14 +1,14 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 
 import { App } from "./App";
-import { fakeNodeSnapshot, fakeNodeState } from "./fakeNodeState";
+import { fakeNodeSnapshot, fakeNodeState, nepalNodeState } from "./fakeNodeState";
 import type { NodeState } from "./nodeState";
 import { STATE_POLL_MS } from "./useNodeState";
 
 let current: NodeState;
 
 function stubNode(state: Partial<NodeState>) {
-  current = fakeNodeState(state);
+  current = nepalNodeState(state);
   const answers: Record<string, () => unknown> = {
     "/api/state": () => current,
     "/api/cache-pack": () => ({ available: false, manifest: null }),
@@ -102,7 +102,7 @@ describe("a Node's marker", () => {
     expect(within(marker).getByText("CONTACT LOST")).toBeInTheDocument();
     expect(marker.querySelector(".contact-arc")).not.toBeNull();
 
-    current = fakeNodeState({ nodes: [fakeNodeSnapshot("laptop-pokhara", { age_s: 1 })] });
+    current = nepalNodeState({ nodes: [fakeNodeSnapshot("laptop-pokhara", { age_s: 1 })] });
     await nextPoll();
 
     expect(within(strip).getByText("laptop-pokhara: heard again")).toBeInTheDocument();
@@ -117,7 +117,7 @@ describe("a Node's marker", () => {
     const strip = await screen.findByRole("contentinfo", { name: "Status" });
     await within(strip).findByText(/s0: contact lost/);
 
-    current = fakeNodeState({ nodes: [fakeNodeSnapshot("s0", { age_s: 16, stale: true })] });
+    current = nepalNodeState({ nodes: [fakeNodeSnapshot("s0", { age_s: 16, stale: true })] });
     await nextPoll();
 
     expect(within(strip).queryByText(/heard again/)).toBeNull();
@@ -137,7 +137,7 @@ describe("a Node's marker", () => {
       level,
       nodes: { s0: level },
     });
-    current = fakeNodeState({ nodes: [fakeNodeSnapshot("s0")], flood_risk: risk("elevated") });
+    current = nepalNodeState({ nodes: [fakeNodeSnapshot("s0")], flood_risk: risk("elevated") });
     await nextPoll();
 
     expect(markers()[0]).toBe(marker);

@@ -23,7 +23,7 @@ from fixture_pack import (
 from storm_shield.cache_pack import RELEASED_PACKS, CachePack, download_source, release_url
 from storm_shield.main import create_app
 from storm_shield.mesh import InMemoryNetwork
-from storm_shield.region import RegionError, region_path
+from storm_shield.region import RegionError, load_region, region_path
 from storm_shield.settings import Role, Settings
 
 
@@ -176,7 +176,8 @@ def _pack_of_another_region(tmp_path: Path) -> Path:
 
 
 @pytest.mark.parametrize(
-    ("role", "label"), [("sensor", "The Hub's Region"), ("hub", "Bhote Koshi valley, Nepal")]
+    ("role", "label"),
+    [("sensor", "The Hub's Region"), ("hub", load_region(region_path("fort-myers")).label)],
 )
 def test_a_sensor_takes_its_region_from_the_pack_and_a_hub_keeps_its_own(
     tmp_path: Path, role: Role, label: str

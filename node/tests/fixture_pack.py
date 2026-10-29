@@ -65,8 +65,8 @@ def build_nepal_pack(
     """A tiny Nepal Cache Pack in the real layout; the flags break it in the ways a download can
     break.
 
-    Nepal because the only Replay is the Bhote Koshi's, on a river. Tests move to the Fort Myers
-    fixture pack (`fort_myers_pack.py`) once the coast water surface exists (#48, then #90).
+    Nepal for tests about the river or its Replay (the Bhote Koshi's); every other test starts on
+    the Fort Myers fixture pack (`fort_myers_pack.py`).
     """
     files = {
         "shelters.json": json.dumps(shelters).encode(),

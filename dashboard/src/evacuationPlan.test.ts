@@ -9,7 +9,7 @@ import {
 import type { HouseholdProfile } from "./householdProfile";
 import type { OfficialAlert } from "./officialAlerts";
 import type { Routes } from "./routeGrid";
-import { FAKE_REGION, FORT_MYERS_REGION } from "./fakeNodeState";
+import { NEPAL_REGION, FAKE_REGION } from "./fakeNodeState";
 import type { FloodRisk } from "./nodeState";
 
 const HOME = { lat: 29.65, lon: -82.32 };
@@ -108,7 +108,7 @@ function plan(overrides: Partial<Parameters<typeof evacuationPlan>[0]> = {}) {
     pack: pack(),
     openShelterIds: ["near-plain", "far-both", "nearest-flagged"],
     floodRisk: null,
-    region: FAKE_REGION,
+    region: NEPAL_REGION,
     hazard: "flash_flood",
     routes: null,
     rerouting: null,
@@ -560,7 +560,7 @@ describe("on a coast", () => {
   };
   const coastPlan = (overrides: Partial<Parameters<typeof evacuationPlan>[0]> = {}) =>
     plan({
-      region: FORT_MYERS_REGION,
+      region: FAKE_REGION,
       hazard: "storm_surge",
       pack: pack({ shelters: [low, high], floodProne: lowGround }),
       openShelterIds: ["low", "high"],

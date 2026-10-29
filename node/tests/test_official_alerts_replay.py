@@ -1,6 +1,7 @@
 import time
 from collections.abc import Callable
 
+import pytest
 import RNS
 from fixture_pack import nepal_event
 from meshed_nodes import MeshedNodes
@@ -8,6 +9,8 @@ from meshed_nodes import MeshedNodes
 from storm_shield.official_alert import HEADLINE_MAX_LENGTH, OfficialAlert
 from storm_shield.region import ALERT_TAG_MAX_LENGTH
 from storm_shield.reticulum_mesh import SIGNATURE_LENGTH
+
+pytestmark = pytest.mark.usefixtures("nepal_region")
 
 # 08:30 NPT on 26 Aug 2026, the first moment of the replay timeline; 1 s of real time is 30 s.
 REPLAY_START = 1787712300

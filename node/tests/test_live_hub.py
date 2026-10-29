@@ -1,9 +1,12 @@
 from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
 from meshed_nodes import MeshedNodes
 
 from storm_shield.timing import STALE_AFTER_SECONDS
+
+pytestmark = pytest.mark.usefixtures("nepal_region")
 
 RIVER_KM = -12.2
 

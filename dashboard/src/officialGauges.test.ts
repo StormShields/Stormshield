@@ -1,4 +1,4 @@
-import { FORT_MYERS_REGION } from "./fakeNodeState";
+import { FAKE_REGION } from "./fakeNodeState";
 import type { OfficialGauge } from "./nodeState";
 import { officialGaugeLabel } from "./officialGauges";
 
@@ -15,17 +15,17 @@ const GAUGE: OfficialGauge = {
 
 describe("officialGaugeLabel", () => {
   it("names the agency and station, the level in the Region's unit and the time in its zone", () => {
-    expect(
-      officialGaugeLabel(GAUGE, FORT_MYERS_REGION.display_units, FORT_MYERS_REGION.time_zone),
-    ).toBe("NOAA 8725520 · 3.3 ft · 18:30 EDT");
+    expect(officialGaugeLabel(GAUGE, FAKE_REGION.display_units, FAKE_REGION.time_zone)).toBe(
+      "NOAA 8725520 · 3.3 ft · 18:30 EDT",
+    );
   });
 
   it("marks a recorded level REPLAY, so it is never mistaken for today's", () => {
     expect(
       officialGaugeLabel(
         { ...GAUGE, mode: "replay" },
-        FORT_MYERS_REGION.display_units,
-        FORT_MYERS_REGION.time_zone,
+        FAKE_REGION.display_units,
+        FAKE_REGION.time_zone,
       ),
     ).toBe("REPLAY · NOAA 8725520 · 3.3 ft · 18:30 EDT");
   });
@@ -34,8 +34,8 @@ describe("officialGaugeLabel", () => {
     expect(
       officialGaugeLabel(
         { ...GAUGE, level_m: null, observed: null, mode: null },
-        FORT_MYERS_REGION.display_units,
-        FORT_MYERS_REGION.time_zone,
+        FAKE_REGION.display_units,
+        FAKE_REGION.time_zone,
       ),
     ).toBe("NOAA 8725520 · no level yet");
   });

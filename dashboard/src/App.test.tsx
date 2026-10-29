@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 
 import { App } from "./App";
-import { fakeNodeSnapshot, fakeNodeState } from "./fakeNodeState";
+import { fakeNodeSnapshot, nepalNodeState } from "./fakeNodeState";
 import type { FloodRisk } from "./nodeState";
 
 const CALM: FloodRisk = {
@@ -47,7 +47,7 @@ const SURGE: FloodRisk = {
 const GARAGE_AGE_SECONDS = 40;
 
 function stubFloodRisk(floodRisk: FloodRisk) {
-  const state = fakeNodeState({
+  const state = nepalNodeState({
     flood_risk: floodRisk,
     nodes: [
       fakeNodeSnapshot("garage", {
