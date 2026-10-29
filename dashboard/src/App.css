@@ -2040,6 +2040,12 @@ section p.flood-prone-caption {
   font-weight: 600;
 }
 
+.sandbox-region {
+  display: grid;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+}
+
 .sandbox-range {
   display: grid;
   grid-template-columns: 1fr auto;

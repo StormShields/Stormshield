@@ -4,7 +4,7 @@ import { App } from "./App";
 import type { CommunityWarning } from "./communityWarnings";
 import { fakeNodeSnapshot, nepalNodeState } from "./fakeNodeState";
 import { dragMarker, markerAt, sourceData, tapMap } from "./fakeMaplibre";
-import type { SandboxNode, SandboxNodes } from "./useSandboxNodes";
+import type { SandboxNode, SandboxNodes, SandboxRegions } from "./useSandboxNodes";
 
 const HUB_AT: [number, number] = [27.97, 85.18];
 const NEAR_AT: [number, number] = [27.92, 85.14];
@@ -49,6 +49,14 @@ const NARROW: SandboxNodes = {
   ],
 };
 
+const REGIONS: SandboxRegions = {
+  current: "nepal",
+  regions: [
+    { name: "fort-myers", label: "Fort Myers" },
+    { name: "nepal", label: "Bhote Koshi, Nepal" },
+  ],
+};
+
 let posted: { path: string; body: unknown }[];
 let sent: { method: string; path: string; body: unknown }[];
 let listed: string[];
@@ -62,6 +70,8 @@ function stubTheHub(options: {
   warnings?: CommunityWarning[];
   // Give the Hub the readings of the Nodes it lists, so each is drawn on the map.
   heardNodes?: boolean;
+  // What the Hub answers when asked to switch Region: a message refuses with it.
+  regionRefusal?: string;
 }) {
   posted = [];
   sent = [];
@@ -89,6 +99,15 @@ function stubTheHub(options: {
       }
       current = answer;
       return Response.json(current);
+    }
+    if (path === "/api/sandbox/regions") return Response.json(REGIONS);
+    if (path === "/api/sandbox/region" && init?.method === "POST") {
+      const body = JSON.parse(init.body as string);
+      posted.push({ path, body });
+      if (options.regionRefusal) {
+        return Response.json({ detail: options.regionRefusal }, { status: 409 });
+      }
+      return Response.json({ ...REGIONS, current: body.region });
     }
     if (path === "/api/state") {
       return Response.json(
@@ -345,4 +364,39 @@ test("Remove takes a Sensor off the list and the map, and the Hub has no Remove"
   await waitFor(() => expect(within(panel).queryByText("near")).not.toBeInTheDocument());
   expect(within(map).queryByText("near")).not.toBeInTheDocument();
   expect(sourceData("radio-range").features).toHaveLength(2);
+});
+
+test("the Region picker lists the Regions and picking one asks the Sandbox to switch", async () => {
+  stubTheHub({ sandbox: true });
+  const panel = await sandboxPanel();
+  const picker = await within(panel).findByRole("combobox", { name: "Region" });
+  expect(
+    within(picker)
+      .getAllByRole("option")
+      .map((option) => option.textContent),
+  ).toEqual(["Fort Myers", "Bhote Koshi, Nepal"]);
+  expect(picker).toHaveValue("nepal");
+
+  fireEvent.change(picker, { target: { value: "fort-myers" } });
+
+  await waitFor(() =>
+    expect(posted).toContainEqual({ path: "/api/sandbox/region", body: { region: "fort-myers" } }),
+  );
+  await waitFor(() => expect(picker).toHaveValue("fort-myers"));
+});
+
+test("a Region with no pack shows the command that builds it", async () => {
+  stubTheHub({
+    sandbox: true,
+    regionRefusal: "no Cache Pack; build one with `scripts/build-cache-pack.sh fort-myers`",
+  });
+  const panel = await sandboxPanel();
+  const picker = await within(panel).findByRole("combobox", { name: "Region" });
+
+  fireEvent.change(picker, { target: { value: "fort-myers" } });
+
+  expect(await within(panel).findByRole("alert")).toHaveTextContent(
+    "scripts/build-cache-pack.sh fort-myers",
+  );
+  expect(picker).toHaveValue("nepal");
 });

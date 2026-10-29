@@ -359,6 +359,11 @@ def region_path(name: str) -> Path:
     return REGIONS_DIR / name / "region.json"
 
 
+def region_names() -> list[str]:
+    """The Regions this checkout has a Region file for, by folder name."""
+    return sorted(path.parent.name for path in REGIONS_DIR.glob("*/region.json"))
+
+
 def events_dir(name: str) -> Path:
     """The Region's hand-written and built Event files, which the build and every Node read."""
     return REGIONS_DIR / name / "events"

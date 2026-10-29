@@ -65,9 +65,11 @@ from storm_shield.replay import Event, EventClock, ReplayClockMessage, SensorSpo
 from storm_shield.reticulum_mesh import ReticulumMesh
 from storm_shield.sandbox_api import (
     RadioRange,
+    RegionChoice,
     SandboxControls,
     SandboxNodes,
     SandboxRefused,
+    SandboxRegions,
     Spot,
     UnknownSensor,
 )
@@ -1000,6 +1002,17 @@ def create_app(
                 return sandbox.move_sensor(sensor_id, spot)
             except UnknownSensor:
                 raise HTTPException(status_code=404, detail=f"no Sensor {sensor_id!r}") from None
+            except SandboxRefused as refusal:
+                raise HTTPException(status_code=409, detail=str(refusal)) from None
+
+        @app.get("/api/sandbox/regions")
+        def sandbox_regions() -> SandboxRegions:
+            return sandbox.regions()
+
+        @app.post("/api/sandbox/region")
+        def switch_sandbox_region(choice: RegionChoice) -> SandboxRegions:
+            try:
+                return sandbox.switch_region(choice.region)
             except SandboxRefused as refusal:
                 raise HTTPException(status_code=409, detail=str(refusal)) from None
 

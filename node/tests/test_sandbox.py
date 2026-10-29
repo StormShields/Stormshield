@@ -13,7 +13,15 @@ from terrarium import ground_at
 from storm_shield import sandbox as sandbox_module
 from storm_shield.cache_pack import release_url
 from storm_shield.community_reading import CommunityReading, Measurement, Position
-from storm_shield.sandbox import HUB_SITE, SENSOR_SITES, Sandbox, SandboxError, pack_for
+from storm_shield.region import load_region, region_path
+from storm_shield.sandbox import (
+    HUB_SITE,
+    SENSOR_SITES,
+    Sandbox,
+    SandboxError,
+    pack_for,
+    sites_of,
+)
 
 # On the bay shore, where the Event's water arrives first, and on a hill inland that it never reaches.
 BY_THE_BAY = {"latitude": 26.4507, "longitude": -81.9533}
@@ -385,3 +393,63 @@ def test_a_sensor_the_registry_has_no_room_for_is_refused_and_not_left_behind(
     # The Hub, the Region's Sensors and the ones that did fit: the refused one is not among them.
     assert len(listed) > 1 + len(SENSOR_SITES)
     assert len(listed) < 20
+
+
+def _a_nepal_pack(tmp_path: Path) -> Path:
+    path = tmp_path / "nepal-pack.zip"
+    path.write_bytes(build_fort_myers_pack(region_file=region_path("nepal")))
+    return path
+
+
+def test_switching_region_restarts_the_mesh_on_the_new_regions_pack_and_sensors(
+    pack: Path, scratch: Path, tmp_path: Path
+) -> None:
+    nepal = _a_nepal_pack(tmp_path)
+    with Sandbox(pack, find_pack=lambda region: nepal) as sandbox:
+        listed = TestClient(sandbox.hub).get("/api/sandbox/regions").json()
+        assert listed["current"] == "fort-myers"
+        assert {"fort-myers", "nepal"} <= {region["name"] for region in listed["regions"]}
+
+        response = TestClient(sandbox.hub).post("/api/sandbox/region", json={"region": "nepal"})
+        state = TestClient(sandbox.hub).get("/api/state").json()
+        nodes = _nodes(sandbox)
+
+    assert response.status_code == 200
+    assert response.json()["current"] == "nepal"
+    assert state["region"]["name"] == "nepal"
+    nepal_sites = sites_of(load_region(region_path("nepal")))
+    assert set(nodes) == {"hub", *(site.name for site in nepal_sites[1])}
+    assert nodes["hub"]["position"] == [nepal_sites[0].latitude, nepal_sites[0].longitude]
+
+
+def test_a_region_with_no_pack_is_refused_with_the_command_that_builds_it(
+    pack: Path, scratch: Path
+) -> None:
+    def no_pack(region: str) -> Path:
+        raise SandboxError(f"no Cache Pack; build one with `scripts/build-cache-pack.sh {region}`")
+
+    with Sandbox(pack, find_pack=no_pack) as sandbox:
+        response = TestClient(sandbox.hub).post("/api/sandbox/region", json={"region": "nepal"})
+        still = TestClient(sandbox.hub).get("/api/state").json()["region"]["name"]
+
+    assert response.status_code == 409
+    assert "scripts/build-cache-pack.sh nepal" in response.json()["detail"]
+    assert still == "fort-myers"
+
+
+def test_a_region_that_does_not_exist_is_refused(pack: Path, scratch: Path) -> None:
+    with Sandbox(pack, find_pack=lambda region: pack) as sandbox:
+        response = TestClient(sandbox.hub).post("/api/sandbox/region", json={"region": "atlantis"})
+
+    assert response.status_code == 409
+
+
+def test_the_old_regions_nodes_are_gone_after_a_switch(
+    pack: Path, scratch: Path, tmp_path: Path
+) -> None:
+    nepal = _a_nepal_pack(tmp_path)
+    with Sandbox(pack, find_pack=lambda region: nepal) as sandbox:
+        old_network = sandbox.network
+        TestClient(sandbox.hub).post("/api/sandbox/region", json={"region": "nepal"})
+        assert sandbox.network is not old_network
+    assert list(scratch.iterdir()) == []

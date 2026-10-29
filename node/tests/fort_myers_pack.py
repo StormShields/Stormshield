@@ -20,10 +20,13 @@ BUILT = "2026-10-24T00:00:00+00:00"
 ZIP_TIME = (2026, 10, 24, 0, 0, 0)
 
 
-def build_fort_myers_pack(terrain: dict[str, bytes] | None = None) -> bytes:
+def build_fort_myers_pack(
+    terrain: dict[str, bytes] | None = None, region_file: Path = REGION_FILE
+) -> bytes:
     """The fixture pack's bytes, built from the Region file as it is now; a test that needs ground
-    heights adds its own `terrain` tiles, keyed by pack path."""
-    raw_region = REGION_FILE.read_bytes()
+    heights adds its own `terrain` tiles, keyed by pack path. A test that needs another Region's
+    pack passes that Region's `region_file`."""
+    raw_region = region_file.read_bytes()
     region: dict[str, Any] = json.loads(raw_region)
     # As scripts/build_cache_pack.py writes them: each Shelter without its reviewers' note.
     shelters = [

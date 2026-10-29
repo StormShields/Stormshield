@@ -18,18 +18,21 @@ import httpx
 import uvicorn
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from starlette.types import Receive, Scope, Send
 
 from storm_shield.cache_pack import CachePack, InvalidCachePack, download_source
 from storm_shield.community_reading import Position
 from storm_shield.main import create_app
 from storm_shield.mesh import InMemoryNetwork
-from storm_shield.region import load_region, region_path
+from storm_shield.region import Region, load_region, region_names, region_path
 from storm_shield.river_line import river_km_at
 from storm_shield.sandbox_api import (
     SandboxControls,
     SandboxNode,
     SandboxNodes,
     SandboxRefused,
+    SandboxRegion,
+    SandboxRegions,
     Spot,
     UnknownSensor,
 )
@@ -53,18 +56,20 @@ class NodeSite(NamedTuple):
     river_km: float | None
 
 
-_REGION = load_region(region_path(Settings().region))
-HUB_SITE = NodeSite(
-    HUB, _REGION.hub_site.pos[0], _REGION.hub_site.pos[1], _REGION.hub_site.river_km
-)
-# The Region's sensor sites, in the file's order: nearest the Hub first, because a Node's first
-# reading goes out as it joins and only reaches the Hub if the Nodes between are already there.
-# Named s0, s1, ...: the Region's site ids are long, and nine of them would not fit the one signed
-# packet a registry travels in.
-SENSOR_SITES = [
-    NodeSite(f"s{number}", site.pos[0], site.pos[1], site.river_km)
-    for number, site in enumerate(_REGION.sensor_sites)
-]
+def sites_of(region: Region) -> tuple[NodeSite, list[NodeSite]]:
+    """Where the Region's Hub runs, and its suggested sensor sites in the file's order: nearest the
+    Hub first, because a Node's first reading goes out as it joins and only reaches the Hub if the
+    Nodes between are already there. Sensors are named s0, s1, ...: the Region's site ids are long,
+    and nine of them would not fit the one signed packet a registry travels in."""
+    hub = NodeSite(HUB, region.hub_site.pos[0], region.hub_site.pos[1], region.hub_site.river_km)
+    sensors = [
+        NodeSite(f"s{number}", site.pos[0], site.pos[1], site.river_km)
+        for number, site in enumerate(region.sensor_sites)
+    ]
+    return hub, sensors
+
+
+HUB_SITE, SENSOR_SITES = sites_of(load_region(region_path(Settings().region)))
 
 
 class SandboxError(Exception):
@@ -153,45 +158,55 @@ class SimulatedNodes:
         return self._clients[name]
 
 
+class _Switchboard:
+    """The app the Sandbox serves: whichever Hub is current, so a Region switch swaps the Hub
+    without restarting the server. The Hub's own loops run in its test client, so this answers the
+    server's lifespan itself."""
+
+    def __init__(self) -> None:
+        self.app: FastAPI
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "lifespan":
+            await self.app(scope, receive, send)
+            return
+        while True:
+            message = await receive()
+            if message["type"] == "lifespan.startup":
+                await send({"type": "lifespan.startup.complete"})
+            elif message["type"] == "lifespan.shutdown":
+                await send({"type": "lifespan.shutdown.complete"})
+                return
+
+
 class Sandbox:
     """A Hub and simulated Sensors in this process on one in-memory Mesh, already registered.
 
     Everything the Nodes write lives in a temporary folder that is removed on exit. The Sensors
     run their loops here; the caller serves `hub` (or drives it with a TestClient). `network` is the
     Mesh they share, for a caller that needs to put a message on it.
+
+    Switching Region starts a whole new Mesh from that Region's pack, found by `find_pack`, and
+    swaps it in under `hub`; the old one is closed once the new one is up.
     """
 
-    def __init__(self, pack: Path) -> None:
-        if not pack.is_file():
-            raise SandboxError(
-                f"no Cache Pack at {pack}; build one with scripts/build-cache-pack.sh or drop --pack"
-            )
-        self._pack = pack
-        self._pack_bytes = b""
+    def __init__(
+        self,
+        pack: Path,
+        region: str | None = None,
+        *,
+        find_pack: Callable[[str], Path] | None = None,
+    ) -> None:
+        _require_pack(pack)
+        self._first = (region or Settings().region, pack)
+        self._find_pack = find_pack
+        self._switching = threading.Lock()
         self._stack = ExitStack()
-        self.hub: FastAPI
+        self.hub = _Switchboard()
         self.network: InMemoryNetwork
 
     def __enter__(self) -> Self:
-        self._pack_bytes = self._pack.read_bytes()
-        with ExitStack() as setup:
-            directory = Path(
-                setup.enter_context(TemporaryDirectory(prefix="storm-shield-sandbox-"))
-            )
-            nodes = SimulatedNodes(directory, radio_range_m=SANDBOX_RADIO_RANGE_M)
-            setup.callback(nodes.close)
-            hub_client = self._start_hub(nodes)
-            self.hub = cast(FastAPI, hub_client.app)
-            self.network = nodes.network
-            # Running starts a Sensor's loops, so it keeps publishing. All of them join before any
-            # signs up: a Sensor out of the Hub's own range needs its neighbours to relay.
-            sensors = {
-                site.name: _start_sensor(nodes, site, self._pack_bytes) for site in SENSOR_SITES
-            }
-            for name, sensor in sensors.items():
-                # An in-memory Node's id is its name.
-                _register(sensor, hub_client, name)
-            self._stack = setup.pop_all()
+        self._stack, self.hub.app, self.network = self._start(*self._first)
         return self
 
     def __exit__(
@@ -202,18 +217,74 @@ class Sandbox:
     ) -> None:
         self._stack.close()
 
-    def _start_hub(self, nodes: SimulatedNodes) -> TestClient:
-        settings = _settings(nodes, HUB_SITE, role="hub", dashboard_dir=BUILT_DASHBOARD.parent)
+    def _start(self, region: str, pack: Path) -> tuple[ExitStack, FastAPI, InMemoryNetwork]:
+        _require_pack(pack)
+        pack_bytes = pack.read_bytes()
+        hub_site, sensor_sites = sites_of(load_region(region_path(region)))
+        with ExitStack() as setup:
+            directory = Path(
+                setup.enter_context(TemporaryDirectory(prefix="storm-shield-sandbox-"))
+            )
+            nodes = SimulatedNodes(directory, radio_range_m=SANDBOX_RADIO_RANGE_M)
+            setup.callback(nodes.close)
+            hub_client = self._start_hub(
+                nodes, hub_site, region, pack, pack_bytes, len(sensor_sites)
+            )
+            # Running starts a Sensor's loops, so it keeps publishing. All of them join before any
+            # signs up: a Sensor out of the Hub's own range needs its neighbours to relay.
+            sensors = {site.name: _start_sensor(nodes, site, pack_bytes) for site in sensor_sites}
+            for name, sensor in sensors.items():
+                # An in-memory Node's id is its name.
+                _register(sensor, hub_client, name)
+            return setup.pop_all(), cast(FastAPI, hub_client.app), nodes.network
+
+    def _start_hub(
+        self,
+        nodes: SimulatedNodes,
+        site: NodeSite,
+        region: str,
+        pack: Path,
+        pack_bytes: bytes,
+        sensors_placed: int,
+    ) -> TestClient:
+        settings = _settings(
+            nodes, site, role="hub", region=region, dashboard_dir=BUILT_DASHBOARD.parent
+        )
         try:
-            CachePack(settings.cache_pack_dir).install(self._pack_bytes)
+            CachePack(settings.cache_pack_dir).install(pack_bytes)
         except InvalidCachePack as error:
-            raise SandboxError(f"{self._pack} is not a usable Cache Pack: {error}") from error
+            raise SandboxError(f"{pack} is not a usable Cache Pack: {error}") from error
         river = CachePack(settings.cache_pack_dir).file("river.geojson")
         return nodes.start(
             settings,
+            running=True,
             sandbox=_Controls(
-                nodes, self._pack_bytes, json.loads(river.read_text()) if river else None
+                nodes,
+                pack_bytes,
+                json.loads(river.read_text()) if river else None,
+                region,
+                sensors_placed,
+                self._switch_region,
             ),
+        )
+
+    def _switch_region(self, region: str) -> None:
+        with self._switching:
+            if self._find_pack is None:
+                raise SandboxRefused("this Sandbox has no way to find another Region's Cache Pack")
+            try:
+                stack, hub, network = self._start(region, self._find_pack(region))
+            except SandboxError as error:
+                raise SandboxRefused(str(error)) from None
+            old = self._stack
+            self._stack, self.hub.app, self.network = stack, hub, network
+            old.close()
+
+
+def _require_pack(pack: Path) -> None:
+    if not pack.is_file():
+        raise SandboxError(
+            f"no Cache Pack at {pack}; build one with scripts/build-cache-pack.sh or drop --pack"
         )
 
 
@@ -224,15 +295,25 @@ class _Controls(SandboxControls):
     line, which tells a Sensor placed on the map its River km.
     """
 
-    def __init__(self, nodes: SimulatedNodes, pack: bytes, river: dict[str, Any] | None) -> None:
+    def __init__(
+        self,
+        nodes: SimulatedNodes,
+        pack: bytes,
+        river: dict[str, Any] | None,
+        region: str,
+        sensors_placed: int,
+        switch_region: Callable[[str], None],
+    ) -> None:
         self._nodes = nodes
         self._pack = pack
         self._river = river
+        self._region = region
+        self._switch_region = switch_region
         # The API runs on a threadpool: a Sensor being added is half on the Mesh until it is done.
         self._lock = threading.RLock()
         # Sensors are numbered on from the Sandbox's own and never reused: a Sensor that came
         # back under an old id would restart its readings at seq 0, and the Hub would hide them.
-        self._numbers = itertools.count(len(SENSOR_SITES))
+        self._numbers = itertools.count(sensors_placed)
         # Sensors with no path to the Hub when they were placed: it cannot hear them sign up.
         self._unregistered: set[str] = set()
 
@@ -295,6 +376,22 @@ class _Controls(SandboxControls):
             self._nodes.stop(sensor_id)
             self._unregistered.discard(sensor_id)
             return self.nodes()
+
+    def regions(self) -> SandboxRegions:
+        return SandboxRegions(
+            current=self._region,
+            regions=[
+                SandboxRegion(name=name, label=load_region(region_path(name)).label)
+                for name in region_names()
+            ],
+        )
+
+    def switch_region(self, region: str) -> SandboxRegions:
+        if region not in region_names():
+            raise SandboxRefused(f"there is no Region {region!r}")
+        # The Hub this runs on is closed by the switch, so the answer comes from the new one.
+        self._switch_region(region)
+        return SandboxRegions(current=region, regions=self.regions().regions)
 
     def _require_sensor(self, sensor_id: str) -> None:
         if sensor_id == HUB or sensor_id not in self._nodes.network.links(HUB):
@@ -415,22 +512,33 @@ def run() -> None:
     )
     parser.add_argument("--port", type=int, default=8000, help="where the dashboard is served")
     parser.add_argument(
+        "--region",
+        choices=region_names(),
+        default=Settings().region,
+        help="the Region to start on (the dashboard can switch)",
+    )
+    parser.add_argument(
         "--pack",
         type=Path,
         help="a Cache Pack zip to use instead of the Region's built or published one",
     )
     arguments = parser.parse_args()
     try:
-        if arguments.pack is None:
-            settings = Settings()
-            with httpx.Client(timeout=DOWNLOAD_TIMEOUT_SECONDS, follow_redirects=True) as client:
-                arguments.pack = pack_for(settings.region, client, settings.cache_pack_url)
-        build_dashboard_if_missing()
-        with Sandbox(arguments.pack) as sandbox:
-            server = uvicorn.Server(uvicorn.Config(sandbox.hub, port=arguments.port))
-            url = f"http://localhost:{arguments.port}"
-            logger.info("Sandbox dashboard: %s (everything in it is SIMULATED)", url)
-            threading.Thread(target=_open_browser_when_up, args=(server, url), daemon=True).start()
-            server.run()
+        with httpx.Client(timeout=DOWNLOAD_TIMEOUT_SECONDS, follow_redirects=True) as client:
+            cache_pack_url = Settings().cache_pack_url
+
+            def find_pack(region: str) -> Path:
+                return pack_for(region, client, cache_pack_url)
+
+            pack = arguments.pack or find_pack(arguments.region)
+            build_dashboard_if_missing()
+            with Sandbox(pack, arguments.region, find_pack=find_pack) as sandbox:
+                server = uvicorn.Server(uvicorn.Config(sandbox.hub, port=arguments.port))
+                url = f"http://localhost:{arguments.port}"
+                logger.info("Sandbox dashboard: %s (everything in it is SIMULATED)", url)
+                threading.Thread(
+                    target=_open_browser_when_up, args=(server, url), daemon=True
+                ).start()
+                server.run()
     except SandboxError as error:
         raise SystemExit(f"storm-shield-sandbox: {error}") from None

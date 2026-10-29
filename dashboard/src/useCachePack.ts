@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { Basemap, CachePackContents, HighGroundPoint } from "./evacuationPlan";
 import type { RouteGrid } from "./routeGrid";
@@ -50,9 +50,20 @@ async function fetchCachePack(): Promise<CachePackContents | null> {
   return { shelters, highGround, floodProne, routeGrid, bbox, built, basemap } as CachePackContents;
 }
 
-// The pack never changes once a Node holds a valid one, so it is read once and then kept.
-export function useCachePack(): CachePackContents | null {
+// The pack never changes once a Node holds a valid one, so it is read once and then kept, until
+// the Sandbox switches Region: the Hub then holds another pack, which is read afresh.
+export function useCachePack(regionName: string | null): CachePackContents | null {
   const [pack, setPack] = useState<CachePackContents | null>(null);
+  const [generation, setGeneration] = useState(0);
+  const packOf = useRef<string | null>(null);
+  useEffect(() => {
+    if (regionName === null) return;
+    if (packOf.current !== null && packOf.current !== regionName) {
+      setPack(null);
+      setGeneration((count) => count + 1);
+    }
+    packOf.current = regionName;
+  }, [regionName]);
   useEffect(() => {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout>;
@@ -75,6 +86,6 @@ export function useCachePack(): CachePackContents | null {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, []);
+  }, [generation]);
   return pack;
 }
