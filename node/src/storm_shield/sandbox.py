@@ -22,7 +22,7 @@ from fastapi.testclient import TestClient
 from storm_shield.cache_pack import CachePack, InvalidCachePack, download_source
 from storm_shield.community_reading import Position
 from storm_shield.main import create_app
-from storm_shield.mesh import InMemoryNetwork
+from storm_shield.mesh import InMemoryNetwork, metres_between
 from storm_shield.region import load_region, region_path
 from storm_shield.river_line import river_km_at
 from storm_shield.sandbox_api import (
@@ -31,6 +31,7 @@ from storm_shield.sandbox_api import (
     SandboxNodes,
     SandboxRefused,
     Spot,
+    SuggestedSite,
     UnknownSensor,
 )
 from storm_shield.settings import Settings
@@ -38,8 +39,11 @@ from storm_shield.settings import Settings
 logger = logging.getLogger(__name__)
 
 HUB = "hub"
-# Wide enough for the Region's sensor sites, whose longest gap is about 33 km. When the Sandbox
-# places its Sensors on a Region's sites (#46) this becomes the 1 km the spec asks for.
+# A suggested site counts as taken by a Sensor this close: a tap on its marker lands on the pixel,
+# not the exact coordinate.
+SITE_TAKEN_WITHIN_M = 50.0
+# Wide enough for the Region's sensor sites, whose longest gap is about 33 km; the slider narrows
+# it towards the spec's 1 km.
 SANDBOX_RADIO_RANGE_M = 40_000.0
 DOWNLOAD_TIMEOUT_SECONDS = 120
 REPO = Path(__file__).resolve().parents[3]
@@ -258,6 +262,14 @@ class _Controls(SandboxControls):
                         and newest_warning in {w["id"] for w in states[name]["community_warnings"]},
                     )
                     for name, reach in links.items()
+                ],
+                suggested_sites=[
+                    SuggestedSite(label=site.label, why=site.why, position=site.pos)
+                    for site in _REGION.sensor_sites
+                    if not any(
+                        metres_between(Position(*site.pos), reach.position) <= SITE_TAKEN_WITHIN_M
+                        for reach in links.values()
+                    )
                 ],
             )
 

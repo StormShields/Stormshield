@@ -17,7 +17,14 @@ export type SandboxNode = {
   heard_warning: boolean;
 };
 
-export type SandboxNodes = { radio_range_m: number; nodes: SandboxNode[] };
+// A spot the Region's author suggests for a Sensor, shown while no Sensor sits there.
+export type SuggestedSite = { label: string; why: string; position: [number, number] };
+
+export type SandboxNodes = {
+  radio_range_m: number;
+  nodes: SandboxNode[];
+  suggested_sites: SuggestedSite[];
+};
 
 export type SandboxFeed = {
   // Null before the first answer, and while the page is not in the Sandbox.

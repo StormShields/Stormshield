@@ -69,6 +69,9 @@
   --radio-range: var(--cyan-400);
   --radio-link: var(--ink-300);
   --no-path: var(--amber-400);
+  /* a site the Region suggests for a Sensor, until one is there */
+  --suggested-site: var(--ink-300);
+  --suggested-site-opacity: 0.55;
   --map-height-low: var(--navy-700);
   --map-height-mid: var(--navy-600);
   --map-height-high: var(--ink-400);
