@@ -2,7 +2,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 
 import { App } from "./App";
 import type { CommunityWarning } from "./communityWarnings";
-import { FORT_MYERS_REGION, fakeNodeSnapshot, fakeNodeState } from "./fakeNodeState";
+import { FAKE_REGION, fakeNodeSnapshot, nepalNodeState } from "./fakeNodeState";
 import type { NodeState } from "./nodeState";
 import type { OfficialAlert } from "./officialAlerts";
 
@@ -46,7 +46,7 @@ const STORM_SURGE_WARNING: CommunityWarning = {
   rise_m_per_h: 0.4267,
 };
 
-const FORT_MYERS: Partial<NodeState> = { region: FORT_MYERS_REGION, hazard: "storm_surge" };
+const FORT_MYERS: Partial<NodeState> = { region: FAKE_REGION, hazard: "storm_surge" };
 
 function stubNode(
   role: "hub" | "sensor",
@@ -55,7 +55,7 @@ function stubNode(
   overrides: Partial<NodeState> = {},
 ) {
   const answers: Record<string, unknown> = {
-    "/api/state": fakeNodeState({
+    "/api/state": nepalNodeState({
       id: "porch",
       role,
       community_warnings: warnings,

@@ -15,6 +15,8 @@ from storm_shield.flood_email import FloodEmail
 from storm_shield.region import load_region, region_path
 from storm_shield.settings import Settings
 
+pytestmark = pytest.mark.usefixtures("nepal_region")
+
 LOGIN_TEXT = "app-password-1234"
 EMAIL_SETTINGS: dict[str, Any] = {
     "alert_email_from": "team@example.org",

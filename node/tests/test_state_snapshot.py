@@ -1,5 +1,6 @@
 from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
 from meshed_nodes import MeshedNodes
 
@@ -52,6 +53,7 @@ def test_the_state_groups_each_nodes_readings_with_its_own_and_its_peers(
     assert _entry(state, "porch")["measurements"]["air_pressure"]["unit"] == "hPa"
 
 
+@pytest.mark.usefixtures("nepal_region")
 def test_a_node_entry_holds_exactly_the_kinds_its_sensor_declared(
     meshed_nodes: MeshedNodes,
 ) -> None:
@@ -99,6 +101,7 @@ def test_a_new_reading_makes_a_stale_node_fresh_again(meshed_nodes: MeshedNodes)
     assert garage["age_s"] == 0
 
 
+@pytest.mark.usefixtures("nepal_region")
 def test_flood_risk_in_the_state_agrees_with_the_readings_beside_it(
     meshed_nodes: MeshedNodes,
 ) -> None:
@@ -177,15 +180,11 @@ def test_the_state_holds_exactly_these_keys(
 def test_the_state_names_the_region_and_its_hazard(meshed_nodes: MeshedNodes) -> None:
     meshed_nodes.start("porch")
     state = _state(meshed_nodes["porch"])
-    assert state["hazard"] == "flash_flood"
-    assert state["region"]["name"] == "nepal"
-    assert state["region"]["time_zone"] == "Asia/Kathmandu"
-    assert state["region"]["display_units"]["water_level"] == "cm"
-    assert {s["tag"]: s["name"] for s in state["region"]["official_alert_sources"]} == {
-        "dhm": "DHM",
-        "ndrrma": "NDRRMA",
-        "district": "District authorities",
-    }
+    assert state["hazard"] == "storm_surge"
+    assert state["region"]["name"] == "fort-myers"
+    assert state["region"]["time_zone"] == "America/New_York"
+    assert state["region"]["display_units"]["water_level"] == "ft"
+    assert {s["tag"] for s in state["region"]["official_alert_sources"]} == {"nws_tbw"}
 
 
 def test_the_endpoints_the_state_replaced_are_gone(meshed_nodes: MeshedNodes) -> None:

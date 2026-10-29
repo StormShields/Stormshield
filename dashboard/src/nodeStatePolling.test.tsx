@@ -1,7 +1,7 @@
 import { act, render, screen } from "@testing-library/react";
 
 import { App } from "./App";
-import { fakeNodeSnapshot, fakeNodeState } from "./fakeNodeState";
+import { fakeNodeSnapshot, nepalNodeState } from "./fakeNodeState";
 import { STATE_POLL_MS } from "./useNodeState";
 
 let pressure: number;
@@ -27,7 +27,7 @@ beforeEach(() => {
       stateRequests += 1;
       if (hungUp) return neverAnswers(init?.signal);
       return Response.json(
-        fakeNodeState({
+        nepalNodeState({
           nodes: [
             fakeNodeSnapshot("porch", {
               measurements: { air_pressure: { value: pressure, unit: "hPa" } },

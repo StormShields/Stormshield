@@ -3,7 +3,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { App } from "./App";
 import { bannerWarnings, pendingWarnings } from "./acknowledgedWarnings";
 import type { CommunityWarning } from "./communityWarnings";
-import { FAKE_REGION, fakeNodeSnapshot, fakeNodeState } from "./fakeNodeState";
+import { NEPAL_REGION, fakeNodeSnapshot, fakeNodeState } from "./fakeNodeState";
 import type { OfficialAlert } from "./officialAlerts";
 import { setViewport } from "./fakeViewport";
 import { WarningTakeover } from "./WarningTakeover";
@@ -173,7 +173,7 @@ describe("a Community Warning's takeover", () => {
   it("leads with the wave countdown", () => {
     render(
       <WarningTakeover
-        region={FAKE_REGION}
+        region={NEPAL_REGION}
         pending={[{ kind: "community", key: "community:7", warning: WARNING }]}
         nodes={[fakeNodeSnapshot("s0", { name: "S0 Lhende" })]}
         thisNodeId="porch"

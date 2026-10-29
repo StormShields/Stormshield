@@ -5,7 +5,7 @@ import { Profiler } from "react";
 import { App } from "./App";
 import type { CommunityWarning } from "./communityWarnings";
 import { addressesTheMapWouldFetch, lastMap } from "./fakeMaplibre";
-import { fakeNodeSnapshot, fakeNodeState } from "./fakeNodeState";
+import { fakeNodeSnapshot, nepalNodeState } from "./fakeNodeState";
 import type { NodeState } from "./nodeState";
 
 const NEPAL_MANIFEST = {
@@ -43,7 +43,7 @@ const WARNING: CommunityWarning = {
 
 function stubNode(state: Partial<NodeState> = {}, manifest: unknown = null) {
   const answers: Record<string, unknown> = {
-    "/api/state": fakeNodeState(state),
+    "/api/state": nepalNodeState(state),
     "/api/cache-pack": { available: manifest !== null, manifest },
     "/api/cache-pack/files/shelters.json": [],
     "/api/cache-pack/files/flood_prone.geojson": { type: "FeatureCollection", features: [] },

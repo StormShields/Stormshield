@@ -17,7 +17,7 @@ class Settings(BaseSettings):
 
     name: str = "node-1"
     # The folder under regions/ whose region.json this Node watches.
-    region: str = "nepal"
+    region: str = "fort-myers"
     role: Role = "sensor"
     port: int = 8000
     # Betrawati until the operator sets the real spot; only a fuzzed copy leaves the Node.

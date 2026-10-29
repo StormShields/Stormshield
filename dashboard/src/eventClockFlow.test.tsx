@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 
 import { App } from "./App";
-import { fakeNodeState } from "./fakeNodeState";
+import { nepalNodeState } from "./fakeNodeState";
 
 // 08:41 NPT on 26 Aug 2026: 08:30 is 1787712300 and the Event clock is 11 minutes on.
 const EIGHT_FORTY_ONE = 1787712300 + 11 * 60;
@@ -12,7 +12,7 @@ beforeEach(() => {
   replay = { v: 1, kind: "replay", state: "stopped", event_t: 0, rate: 1 };
   vi.stubGlobal("fetch", async (path: string) => {
     if (path === "/api/replay") return Response.json(replay);
-    if (path === "/api/state") return Response.json(fakeNodeState({ role: "sensor" }));
+    if (path === "/api/state") return Response.json(nepalNodeState({ role: "sensor" }));
     return new Response(null, { status: 404 });
   });
   vi.spyOn(console, "error").mockImplementation(() => {});

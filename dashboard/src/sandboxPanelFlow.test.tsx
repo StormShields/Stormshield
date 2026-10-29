@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 
 import { App } from "./App";
 import type { CommunityWarning } from "./communityWarnings";
-import { fakeNodeSnapshot, fakeNodeState } from "./fakeNodeState";
+import { fakeNodeSnapshot, nepalNodeState } from "./fakeNodeState";
 import { dragMarker, markerAt, sourceData, tapMap } from "./fakeMaplibre";
 import type { SandboxNode, SandboxNodes } from "./useSandboxNodes";
 
@@ -92,7 +92,7 @@ function stubTheHub(options: {
     }
     if (path === "/api/state") {
       return Response.json(
-        fakeNodeState({
+        nepalNodeState({
           id: "hub",
           name: "hub",
           sandbox: options.sandbox ? { label: "SIMULATED" } : null,

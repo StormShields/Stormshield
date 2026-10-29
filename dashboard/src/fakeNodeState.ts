@@ -1,7 +1,7 @@
 import type { NodeSnapshot, NodeState, Region } from "./nodeState";
 
-// Nepal's Region as a Node reports it.
-export const FAKE_REGION: Region = {
+// Nepal's Region as a Node reports it, for tests about the river, River km or the Replay.
+export const NEPAL_REGION: Region = {
   name: "nepal",
   label: "Bhote Koshi valley, Nepal",
   water_type: "river",
@@ -21,8 +21,8 @@ export const FAKE_REGION: Region = {
   ],
 };
 
-// Fort Myers' Region as a Node reports it: Eastern time, feet and miles.
-export const FORT_MYERS_REGION: Region = {
+// The Region a Node reports unless a test says otherwise: Fort Myers, in Eastern time, feet and miles.
+export const FAKE_REGION: Region = {
   name: "fort-myers",
   label: "Fort Myers Beach and Estero Bay, Florida",
   water_type: "coast",
@@ -48,7 +48,7 @@ export function fakeNodeState(overrides: Partial<NodeState> = {}): NodeState {
     registration: "registered",
     sandbox: null,
     region: FAKE_REGION,
-    hazard: "flash_flood",
+    hazard: "storm_surge",
     live: false,
     flood_risk: {
       level: null,
@@ -63,6 +63,11 @@ export function fakeNodeState(overrides: Partial<NodeState> = {}): NodeState {
     official_gauges: [],
     ...overrides,
   };
+}
+
+/** A Node on the river: Nepal, in Nepal time, centimetres and a flash flood. */
+export function nepalNodeState(overrides: Partial<NodeState> = {}): NodeState {
+  return fakeNodeState({ region: NEPAL_REGION, hazard: "flash_flood", ...overrides });
 }
 
 export function fakeNodeSnapshot(id: string, overrides: Partial<NodeSnapshot> = {}): NodeSnapshot {

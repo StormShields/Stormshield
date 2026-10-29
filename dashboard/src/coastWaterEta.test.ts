@@ -1,11 +1,11 @@
 import { coastEtaBasis, coastEtaLine, coastWaterEta, type LevelSample } from "./coastWaterEta";
-import { FORT_MYERS_REGION } from "./fakeNodeState";
+import { FAKE_REGION } from "./fakeNodeState";
 
 const FT = 30.48;
 // Fort Myers' Flood-Prone Area ends at 9 ft; some of these homes stand higher, so the rule that drops
 // a home above it has its own tests at the end.
-const SURGE = { ...FORT_MYERS_REGION.storm_surge!, flood_prone_below_cm: 12 * FT };
-const UNITS = FORT_MYERS_REGION.display_units;
+const SURGE = { ...FAKE_REGION.storm_surge!, flood_prone_below_cm: 12 * FT };
+const UNITS = FAKE_REGION.display_units;
 const HOUR = 3600;
 
 // A level that rises steadily to `levelFt` at `T`, `ftPerHour` over the whole window before it.
@@ -76,7 +76,7 @@ describe("the coast Water ETA", () => {
   });
 
   it("gives the spec's 8.2 ft home an ETA at Fort Myers, above its High level but inside the Flood-Prone Area", () => {
-    const fortMyers = FORT_MYERS_REGION.storm_surge!;
+    const fortMyers = FAKE_REGION.storm_surge!;
     expect(coastWaterEta(8.2 * FT, risingTo(5.1, 1.4), fortMyers, T)).not.toBeNull();
     expect(coastWaterEta(9.5 * FT, risingTo(5.1, 1.4), fortMyers, T)).toBeNull();
   });

@@ -3,6 +3,8 @@
 import struct
 import zlib
 
+from storm_shield.terrain import tile_position
+
 
 def png(rows: list[list[tuple[int, int, int]]], filter_type: int = 0) -> bytes:
     """An 8-bit RGB PNG whose rows are stored with the given PNG filter (0 none, 1 sub, 2 up)."""
@@ -35,3 +37,9 @@ def png(rows: list[list[tuple[int, int, int]]], filter_type: int = 0) -> bytes:
 def terrarium_png(metres: int) -> bytes:
     encoded = metres + 32768
     return png([[(encoded // 256, encoded % 256, 0)] * 4] * 4)
+
+
+def ground_at(latitude: float, longitude: float, metres: int = 0) -> dict[str, bytes]:
+    """The one zoom-12 terrain tile of a pack that puts the ground at `metres` around this spot."""
+    x, y = tile_position(latitude, longitude, 12)
+    return {f"elevation/12/{int(x)}/{int(y)}.png": terrarium_png(metres)}

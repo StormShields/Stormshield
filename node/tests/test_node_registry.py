@@ -102,6 +102,7 @@ def test_a_registered_node_shows_its_registry_name_and_an_unverified_one_has_non
     assert names["stranger"] is None
 
 
+@pytest.mark.usefixtures("nepal_region")
 def test_the_hub_is_always_registered_and_counts_itself(meshed_nodes: MeshedNodes) -> None:
     # At the end of the replay the gauge at the Hub's River km reads 7.5 m.
     meshed_nodes.start_hub(river_km=-12.2, publish_every_seconds=0.02)

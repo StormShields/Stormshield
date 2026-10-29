@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from storm_shield.main import create_app
@@ -32,6 +33,7 @@ def test_readings_are_aged_and_labeled_simulated() -> None:
     assert 0 <= own["age_s"] < 5
 
 
+@pytest.mark.usefixtures("nepal_region")
 def test_a_node_on_the_river_reads_the_events_first_moment() -> None:
     # S2's gauge at Syabrubesi reads 1.5 m at 08:30, with 3 mm/h of rain and 1005 hPa.
     client = _client(Settings(river_km=14.6))

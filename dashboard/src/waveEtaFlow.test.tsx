@@ -3,7 +3,7 @@ import { BASEMAP_MANIFEST_PARTS } from "./fakeBasemap";
 
 import { App } from "./App";
 import type { CommunityWarning, FlashFloodWarning } from "./communityWarnings";
-import { fakeNodeSnapshot, fakeNodeState } from "./fakeNodeState";
+import { fakeNodeSnapshot, nepalNodeState } from "./fakeNodeState";
 import { sourceData } from "./fakeMaplibre";
 
 const PROFILE_KEY = "storm-shield.household-profile";
@@ -101,7 +101,7 @@ function stubNode({
   highGround?: object[];
 }) {
   const answers: Record<string, unknown> = {
-    "/api/state": fakeNodeState({
+    "/api/state": nepalNodeState({
       id: "porch",
       role: "sensor",
       community_warnings: [warning],

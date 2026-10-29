@@ -1,8 +1,8 @@
-import { fakeNodeSnapshot, fakeNodeState } from "./fakeNodeState";
+import { fakeNodeSnapshot, nepalNodeState } from "./fakeNodeState";
 import { nodesOnMap } from "./nodesOnMap";
 
 test("a Node shows its water level, position and simulated flag", () => {
-  const state = fakeNodeState({
+  const state = nepalNodeState({
     nodes: [
       fakeNodeSnapshot("garage", { measurements: { water_level: { value: 0.84, unit: "m" } } }),
     ],
@@ -12,7 +12,7 @@ test("a Node shows its water level, position and simulated flag", () => {
 });
 
 test("a kind the dashboard has no label for is carried with its own unit", () => {
-  const state = fakeNodeState({
+  const state = nepalNodeState({
     nodes: [
       fakeNodeSnapshot("garage", {
         measurements: {
@@ -30,7 +30,7 @@ test("a kind the dashboard has no label for is carried with its own unit", () =>
 });
 
 test("this Node is labeled with its name and every other Node with its id", () => {
-  const state = fakeNodeState({
+  const state = nepalNodeState({
     id: "b7e1f40a92c5",
     name: "porch",
     nodes: [fakeNodeSnapshot("91c2e0b47a3d"), fakeNodeSnapshot("b7e1f40a92c5")],
@@ -39,7 +39,7 @@ test("this Node is labeled with its name and every other Node with its id", () =
 });
 
 test("a Node is stale and old exactly as the Node says, with no threshold of its own", () => {
-  const state = fakeNodeState({
+  const state = nepalNodeState({
     nodes: [
       fakeNodeSnapshot("fresh", { age_s: 16, stale: false }),
       fakeNodeSnapshot("silent", { age_s: 3, stale: true }),
@@ -51,8 +51,8 @@ test("a Node is stale and old exactly as the Node says, with no threshold of its
 });
 
 test("a Node carries its level from Flood Risk, and no level when Flood Risk has none", () => {
-  const state = fakeNodeState({
-    flood_risk: { ...fakeNodeState().flood_risk, nodes: { garage: "high" } },
+  const state = nepalNodeState({
+    flood_risk: { ...nepalNodeState().flood_risk, nodes: { garage: "high" } },
     nodes: [fakeNodeSnapshot("garage"), fakeNodeSnapshot("porch")],
   });
   expect(nodesOnMap(state).map((node) => node.level)).toEqual([null, "high"]);
@@ -63,7 +63,7 @@ test("before the first answer there are no Nodes on the map", () => {
 });
 
 test("a Registered Node is labeled with its registry name, an Unverified one with its id", () => {
-  const state = fakeNodeState({
+  const state = nepalNodeState({
     id: "b7e1f40a92c5",
     nodes: [
       fakeNodeSnapshot("91c2e0b47a3d", { name: "kitchen" }),
@@ -74,7 +74,7 @@ test("a Registered Node is labeled with its registry name, an Unverified one wit
 });
 
 test("this Node comes first, then Registered Nodes A to Z, then Unverified Nodes", () => {
-  const state = fakeNodeState({
+  const state = nepalNodeState({
     id: "bbb",
     name: "porch",
     nodes: [

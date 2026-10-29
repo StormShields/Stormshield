@@ -9,14 +9,13 @@ import pytest
 import RNS
 from fort_myers_pack import REGION_FILE, build_fort_myers_pack
 from meshed_nodes import MeshedNodes
-from terrarium import terrarium_png
+from terrarium import ground_at
 
 from storm_shield import region
 from storm_shield.community_reading import Position
 from storm_shield.community_warning import CommunityWarning
 from storm_shield.replay import Event, SensorSpot
 from storm_shield.reticulum_mesh import SIGNATURE_LENGTH
-from storm_shield.terrain import tile_position
 
 # 06:00 EDT on 28 Sep 2022, the first moment of the fixture Event.
 EVENT_START = 1664359200
@@ -54,11 +53,6 @@ COAST_EVENT: dict[str, Any] = {
 }
 
 
-def _tile_path(spot: tuple[float, float]) -> str:
-    x, y = tile_position(*spot, 12)
-    return f"elevation/12/{int(x)}/{int(y)}.png"
-
-
 @pytest.fixture
 def coast_pack(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, bytes]:
     """Fort Myers with the fixture Event as its only one, and a pack whose terrain puts the shore at
@@ -68,11 +62,7 @@ def coast_pack(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, b
     (folder / "region.json").write_bytes(REGION_FILE.read_bytes())
     (folder / "events" / "coast-fixture.json").write_text(json.dumps(COAST_EVENT))
     monkeypatch.setattr(region, "REGIONS_DIR", tmp_path / "regions")
-    terrain = {
-        _tile_path(SHORE): terrarium_png(0),
-        _tile_path(LOW): terrarium_png(1),
-        _tile_path(INLAND): terrarium_png(10),
-    }
+    terrain = {**ground_at(*SHORE, 0), **ground_at(*LOW, 1), **ground_at(*INLAND, 10)}
     return tmp_path / "packs", build_fort_myers_pack(terrain)
 
 
@@ -245,7 +235,10 @@ def test_a_damaged_terrain_tile_reads_as_dry_and_the_sensor_keeps_publishing(
     meshed_nodes: MeshedNodes, tmp_path: Path
 ) -> None:
     # The fixture's Region folder, with a pack whose shore tile is not a PNG.
-    pack = (tmp_path / "damaged", build_fort_myers_pack({_tile_path(SHORE): b"not a png"}))
+    pack = (
+        tmp_path / "damaged",
+        build_fort_myers_pack({k: b"not a png" for k in ground_at(*SHORE)}),
+    )
     _start_sensors(meshed_nodes, pack, shore=SHORE)
     _wait_until(lambda: "air_pressure" in _measurements(meshed_nodes, "shore"))
     assert "water_level" not in _measurements(meshed_nodes, "shore")

@@ -1,7 +1,10 @@
 from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
 from meshed_nodes import MeshedNodes
+
+pytestmark = pytest.mark.usefixtures("nepal_region")
 
 
 def _flood_risk(client: TestClient) -> dict[str, Any]:

@@ -1,4 +1,4 @@
-import { FAKE_REGION } from "./fakeNodeState";
+import { NEPAL_REGION } from "./fakeNodeState";
 import { measuredSpeedLine, type FlashFloodWarning } from "./communityWarnings";
 import {
   MAX_DISTANCE_TO_RIVER_KM,
@@ -188,13 +188,13 @@ describe("the measured speed line", () => {
       ...warningAt(-5.6),
       measured: { node: "s1", km: 10, surge_t: SURGE_T + 720, speed_kmh: 78 },
     };
-    expect(measuredSpeedLine(warning, nameOf, FAKE_REGION.display_units)).toBe(
+    expect(measuredSpeedLine(warning, nameOf, NEPAL_REGION.display_units)).toBe(
       "Measured: 15.6 km in 12 min = 78 km/h (S0 to S1)",
     );
   });
 
   it("is absent until a second Node has surged", () => {
-    expect(measuredSpeedLine(warningAt(-5.6), nameOf, FAKE_REGION.display_units)).toBeNull();
+    expect(measuredSpeedLine(warningAt(-5.6), nameOf, NEPAL_REGION.display_units)).toBeNull();
   });
 });
 
