@@ -108,13 +108,10 @@ def test_the_fort_myers_gauge_record_plays_as_a_replay_official_gauge(
     assert gauge()["observed"] == EVENT_START + 12.5 * 3600
 
 
-def test_the_event_list_names_the_stations_that_are_scaled_not_recorded(
+def test_the_event_list_names_no_reconstructed_stations_for_ian(
     meshed_nodes: MeshedNodes, ian_pack: tuple[Path, bytes]
 ) -> None:
     meshed_nodes.start_hub(ian_pack, region="fort-myers")
 
     [ian] = meshed_nodes["hub"].get("/api/replay/events").json()["events"]
-    assert ian["reconstructed_stations"] == [
-        "Fort Myers Beach Pier",
-        "Estero Bay at Coconut Point Marina",
-    ]
+    assert ian["reconstructed_stations"] == []

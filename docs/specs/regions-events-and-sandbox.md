@@ -258,9 +258,7 @@ The Simulated Fleet, the camera clips and Cameras Panel, and the breadboard and 
 - **Bounds**: Fort Myers Beach and Estero Bay, from downtown Fort Myers to Bonita Springs, about 26.30 to 26.67 N and 82.00 to 81.75 W. The first Region ticket sets the exact box. Time zone `America/New_York`; display units ft, in/h, inHg and mi; datum NAVD88.
 - **Water**:
   - The Fort Myers gauge (NOAA 8725520, 6-minute verified water level, 26 to 30 Sep 2022, peak 7.257 ft MHHW at 22:30 UTC on 28 Sep) is one station.
-  - Estero Bay and Fort Myers Beach are stations whose series is the Fort Myers curve scaled to NHC's 12.7 ft MHHW peak at Fort Myers Beach Pier. They are marked `reconstructed`, and the Replay says so on screen.
-  - The scaling doesn't move the curve in time, so the beach's peak plays at the Fort Myers gauge's peak time. That's a known error the USGS readings will fix.
-  - When the USGS storm sensor readings arrive (instrument ids 10768, 10773, 10747, 10855, 10854, 10861), they replace the scaled stations and the `reconstructed` label comes off. Neither the Naples gauge nor the predicted tide is used.
+  - Fort Myers Beach and Estero Bay are stations from the USGS storm sensor readings (instrument ids 10768, 10773, 10747, 10855, 10854, 10861), which are metres above NAVD88 already. Nothing is `reconstructed`, and each station peaks at its own recorded time (issue #54; until then they were the Fort Myers curve scaled to NHC's 12.7 ft MHHW peak, which played the beach's peak at the gauge's peak time). Neither the Naples gauge nor the predicted tide is used.
 - **Official Alerts**:
   - They come from the NWS Tampa Bay (TBW) warnings file: rows for Lee County zones FLZ165 (coastal) and FLZ265 (inland) that are issued or upgraded inside the Event window.
   - Phenomena kept: storm surge, hurricane, tropical storm, flood and flash flood, both watches and warnings.
@@ -268,7 +266,7 @@ The Simulated Fleet, the camera clips and Cameras Panel, and the breadboard and 
 - **Official Gauges**: the Region lists the NOAA tide gauges inside the bbox, starting with 8725520. Live, the Hub brings them in while online. In the Ian Replay, 8725520's recorded series plays as a REPLAY Official Gauge.
 - **Shelters** are hand-picked from Lee County's published shelter list into the Region file, each outside the Flood-Prone Area. **Suggested sensor sites** start from the USGS deployment sites for Ian in Lee County (Estero Bay at Coconut Point Marina and the others in the sources file).
 - **Fort Myers is the default Region** for `NODE_REGION`, for the Sandbox and for the tests. Tests use a small checked-in fixture pack built from the Region file, so they never fetch anything.
-- **Proxy note:** cloud agent sessions run behind a proxy that blocks NOAA (`tidesandcurrents.noaa.gov`, `api.tidesandcurrents.noaa.gov`) and USGS (`stn.wim.usgs.gov`, 3DEP hosts). The Fort Myers build, and live Official Gauges, need those hosts allowlisted in the environment's network policy, or a run on a laptop. The checked-in `sources/` files are what make the Ian Replay buildable without them; the build only re-fetches when asked.
+- **Proxy note:** cloud agent sessions run behind a proxy that blocks NOAA (`tidesandcurrents.noaa.gov`, `api.tidesandcurrents.noaa.gov`) and USGS (`stn.wim.usgs.gov`, `api.waterdata.usgs.gov`, 3DEP hosts). The Fort Myers build, and live Official Gauges, need those hosts allowlisted in the environment's network policy, or a run on a laptop. The checked-in `sources/` files are what make the Ian Replay buildable without them; the build only re-fetches when asked.
 
 ### 6. The Sandbox
 
@@ -412,7 +410,7 @@ The mock-ups for issue #21 settled what the screens hold and how they behave, no
 
 ## Further Notes
 
-- The open item from issue #21 (the USGS storm sensor readings for Fort Myers Beach and Estero Bay) doesn't block this spec. The Ian Replay ships with the scaled, labelled-reconstructed stations and swaps them when the readings are fetched from a laptop.
+- The open item from issue #21 (the USGS storm sensor readings for Fort Myers Beach and Estero Bay) doesn't block this spec. The Ian Replay shipped with scaled, labelled-reconstructed stations; issue #54 swapped them for the USGS readings.
 - Mock-ups: https://claude.ai/artifact/AjDsPvQPY3DFkSp1qzVCTH (Sandbox controls, Region picker, coast Water ETA). They were approved for content and behaviour only; see decision 8 for the look.
 - The Fort Myers thresholds in the Region-file example are placeholders. The ticket that writes the Region file sets them from the NWS storm-surge categories and records where they came from.
 - Glossary entries that this work makes untrue go in the PR that makes them untrue. Scenario, Camera, Camera Clip, Simulated Fleet and Breadboard go with their deletions. River km becomes a river-Region term. Shelter's "well above the river" becomes "outside the Flood-Prone Area". The God's Eye View's "whole of Nepal" becomes "the whole Region".

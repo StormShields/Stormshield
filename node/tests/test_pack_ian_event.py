@@ -23,6 +23,19 @@ WATER_CSV = """Date Time, Water Level, Sigma, O or I (for verified), F, R, L, Qu
 2022-09-29 01:00,3.0,0.01,0,0,0,0,v
 2022-09-29 01:06,2.5,0.01,0,0,0,0,v
 """
+# Two USGS storm sensors: readings every 30 s in metres above NAVD88, the beach rising from 10:00 UTC
+# and the bay only reporting from 10:12, with a reading before the window and one after it.
+SENSOR_CSV = """instrument_id,site_number,time_utc,water_level_m_navd88
+10768,FLLEE03382,2022-09-28 09:55:00,0.400
+10768,FLLEE03382,2022-09-28 10:00:00,0.500
+10768,FLLEE03382,2022-09-28 10:00:30,0.510
+10768,FLLEE03382,2022-09-28 10:06:00,1.500
+10768,FLLEE03382,2022-09-28 18:00:00,4.000
+10768,FLLEE03382,2022-09-29 01:00:00,2.000
+10768,FLLEE03382,2022-09-29 01:06:00,1.000
+10855,FLLEE03289,2022-09-28 10:12:00,0.700
+10855,FLLEE03289,2022-09-28 19:24:00,3.600
+"""
 WARNINGS_HEADER = "wfo,utc_issue,utc_expire,phenomena,significance,eventid,status,ugc"
 
 
@@ -30,8 +43,8 @@ def warnings_csv(*rows: str) -> str:
     return "\n".join([WARNINGS_HEADER, *rows]) + "\n"
 
 
-def build(warnings: str = warnings_csv()) -> Event:
-    return Event.model_validate(build_ian_event(REGION, WATER_CSV, warnings))
+def build(warnings: str = warnings_csv(), sensors: str = SENSOR_CSV) -> Event:
+    return Event.model_validate(build_ian_event(REGION, WATER_CSV, warnings, sensors))
 
 
 def alert_headlines(event: Event) -> list[str]:
@@ -56,18 +69,58 @@ def test_the_series_keeps_only_the_window_and_skips_missing_readings() -> None:
     assert [at for at, _ in gauge.series] == [0, 360, 12.5 * 3600, 15 * 3600]
 
 
-def test_the_beach_and_the_bay_are_the_gauge_curve_scaled_to_the_reported_peak() -> None:
-    event = build()
-    peak_m = 12.7 * FEET + GAUGE_OFFSET_M
+def test_a_usgs_storm_sensor_plays_every_reading_of_the_window() -> None:
+    beach = station(build(), "fort-myers-beach-pier")
 
-    for station_id in ("fort-myers-beach-pier", "estero-bay"):
-        scaled = station(event, station_id)
-        assert scaled.reconstructed
-        assert max(level for _, level in scaled.series) == pytest.approx(peak_m, abs=1e-3)
-        # The curve is scaled, never moved in time.
-        assert [at for at, _ in scaled.series] == [
-            at for at, _ in station(event, "fort-myers-gauge").series
-        ]
+    assert not beach.reconstructed
+    assert beach.label == "Fort Myers Beach Pier"
+    assert beach.pos == (26.4523944, -81.95665833)
+    # Metres above NAVD88 as the USGS wrote them, with no datum offset added; the readings outside
+    # the window are left out.
+    assert beach.series == [(0, 0.5), (30, 0.51), (360, 1.5), (8 * 3600, 4.0), (15 * 3600, 2.0)]
+
+
+def test_a_sensor_that_reports_late_starts_its_series_when_it_does() -> None:
+    bay = station(build(), "coconut-point-marina")
+
+    assert not bay.reconstructed
+    assert bay.series[0] == (720, 0.7)
+
+
+def test_a_station_with_no_readings_in_the_file_is_not_in_the_event() -> None:
+    event = build()
+
+    assert [each.id for each in event.surface.stations] == [
+        "fort-myers-gauge",
+        "fort-myers-beach-pier",
+        "coconut-point-marina",
+    ]
+
+
+def test_no_station_of_the_committed_ian_event_is_reconstructed() -> None:
+    event = read_event_file(region_path("fort-myers").parent / "events" / "ian-2022.json")
+
+    assert event.reconstructed_station_labels() == []
+    assert {each.id for each in event.surface.stations} == {
+        "fort-myers-gauge",
+        "fort-myers-beach-pier",
+        "matanzas-pass",
+        "lovers-key-big-carlos-pass",
+        "coconut-point-marina",
+        "san-carlos-bay-punta-rassa",
+        "mullock-creek-marina",
+    }
+
+
+def test_the_beach_peaks_at_the_recorded_height_and_hours_before_the_gauge() -> None:
+    event = read_event_file(region_path("fort-myers").parent / "events" / "ian-2022.json")
+
+    beach_at, beach_peak = max(station(event, "fort-myers-beach-pier").series, key=lambda r: r[1])
+    gauge_at, _ = max(station(event, "fort-myers-gauge").series, key=lambda r: r[1])
+    # USGS storm sensor 10768 recorded 4.03 m above NAVD88 at 18:39 UTC, 14:39 Eastern.
+    assert beach_peak == pytest.approx(4.03, abs=0.05)
+    assert beach_at == pytest.approx(8.65 * 3600, abs=360)
+    assert gauge_at - beach_at > 3 * 3600
 
 
 def test_the_recorded_gauge_plays_as_an_official_gauge() -> None:
@@ -143,8 +196,6 @@ def test_the_event_fits_the_region_and_names_its_phases() -> None:
 
 def test_the_committed_ian_event_is_what_the_sources_build() -> None:
     region_dir = region_path("fort-myers").parent
-    water, warnings = read_ian_event_sources(region_dir)
-
-    built = Event.model_validate(build_ian_event(REGION, water, warnings))
+    built = Event.model_validate(build_ian_event(REGION, *read_ian_event_sources(region_dir)))
 
     assert read_event_file(region_dir / "events" / "ian-2022.json") == built
