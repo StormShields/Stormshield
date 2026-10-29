@@ -49,6 +49,7 @@ export function fakeNodeState(overrides: Partial<NodeState> = {}): NodeState {
     sandbox: null,
     region: FAKE_REGION,
     hazard: "flash_flood",
+    live: false,
     flood_risk: {
       level: null,
       reasons: [],

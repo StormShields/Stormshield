@@ -13,6 +13,7 @@ type Tab = (typeof TABS)[number];
 const REGISTRY_POLL_MS = 1000;
 
 type Props = {
+  live: boolean;
   eventClock: EventClockFeed;
   shelters: Shelter[];
   openShelterIds: string[];
@@ -34,6 +35,7 @@ async function setShelterOpen(id: string, open: boolean): Promise<string[]> {
 }
 
 export function HubPanel({
+  live,
   eventClock,
   shelters,
   openShelterIds,
@@ -89,7 +91,15 @@ export function HubPanel({
         ))}
       </div>
       {tab === "Registry" && <RegistryTab registry={registry} />}
-      {tab === "Replay" && <ReplayControls eventClock={eventClock} />}
+      {tab === "Replay" &&
+        (live ? (
+          <section aria-label="Replay controls">
+            <h3>Replay</h3>
+            <p role="status">Live Sensors are reporting, so no Replay can play.</p>
+          </section>
+        ) : (
+          <ReplayControls eventClock={eventClock} />
+        ))}
       {tab === "Warnings" && <WarningsTab log={warningLog} registry={registry} />}
       {tab === "Shelters" && (
         <>
