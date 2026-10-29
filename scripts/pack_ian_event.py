@@ -17,6 +17,7 @@ from storm_shield.region import REGIONS_DIR, Region, load_region
 
 WATER_LEVEL_FILE = "noaa-8725520-fort-myers-water-level.csv"
 WARNINGS_FILE = "nws-tbw-warnings-2022-09.csv"
+SENSOR_FILE = "usgs-stn-ian-water-level.csv"
 GAUGE_STATION = "8725520"
 FEET_IN_METRES = 0.3048
 
@@ -24,12 +25,15 @@ EVENT_DATE = "2022-09-28"
 START = "06:00:00"
 END = "21:00:00"
 DEFAULT_RATE = 30
-# NHC's Ian report (AL092022): the peak at Fort Myers Beach Pier, feet above MHHW.
-BEACH_PEAK_FEET_MHHW = 12.7
-# The stations whose series is the gauge's curve scaled to that peak, not a record.
-RECONSTRUCTED_STATIONS = (
-    ("fort-myers-beach-pier", "Fort Myers Beach Pier", (26.4507, -81.9533)),
-    ("estero-bay", "Estero Bay at Coconut Point Marina", (26.39993, -81.84036)),
+# The USGS storm sensors (STN instrument id) whose water level is a station: the readings are metres
+# above NAVD88, the Region's datum, so they need no offset. Positions are the sensors' deployment sites.
+SENSOR_STATIONS = (
+    ("10768", "fort-myers-beach-pier", "Fort Myers Beach Pier", (26.4523944, -81.95665833)),
+    ("10773", "matanzas-pass", "Matanzas Pass", (26.45836, -81.95331)),
+    ("10747", "lovers-key-big-carlos-pass", "Big Carlos Pass at Lovers Key", (26.40377, -81.878)),
+    ("10855", "coconut-point-marina", "Estero Bay at Coconut Point Marina", (26.39993, -81.84036)),
+    ("10854", "san-carlos-bay-punta-rassa", "San Carlos Bay at Punta Rassa", (26.4843, -82.01058)),
+    ("10861", "mullock-creek-marina", "Mullock Creek at Mullock Creek Marina", (26.47333, -81.85167)),
 )
 # NWS Tampa Bay zones for Lee County: coastal and inland.
 LEE_COUNTY_ZONES = {"FLZ165", "FLZ265"}
@@ -45,7 +49,7 @@ PHENOMENA = {
 SIGNIFICANCE = {"A": "Watch", "W": "Warning"}
 SOURCES = {
     "noaa-8725520": "https://tidesandcurrents.noaa.gov/stationhome.html?id=8725520",
-    "nhc-ian-report": "https://www.nhc.noaa.gov/data/tcr/AL092022_Ian.pdf",
+    "usgs-stn-ian": "https://stn.wim.usgs.gov/FEV/#2022Ian",
     "nws-tbw-warnings": "https://mesonet.agron.iastate.edu/request/gis/watchwarn.phtml",
 }
 LANDFALL = "15:05:00"
@@ -74,13 +78,24 @@ def _utc(stamp: str) -> datetime:
     return datetime.strptime(stamp, "%Y-%m-%d %H:%M").replace(tzinfo=UTC)
 
 
-def _series(
-    readings: list[tuple[int, float]], scale: float, offset_m: float
+def _gauge_series(readings: list[tuple[int, float]], offset_m: float) -> list[list[float]]:
+    return [[at, round(level_feet * FEET_IN_METRES + offset_m, 3)] for at, level_feet in readings]
+
+
+def _sensor_series(
+    sensor_csv: str, instrument_id: str, start: datetime, end: datetime
 ) -> list[list[float]]:
-    return [
-        [at, round(level_feet * scale * FEET_IN_METRES + offset_m, 3)]
-        for at, level_feet in readings
-    ]
+    """The sensor's readings in the window, as seconds after the start. Every reading is kept: they
+    swing with a period near the 6-minute filter, so keeping one in six minutes misses the peaks."""
+    series = []
+    for row in _csv_rows(sensor_csv):
+        if row["instrument_id"] != instrument_id:
+            continue
+        moment = datetime.strptime(row["time_utc"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=UTC)
+        at = int((moment - start).total_seconds())
+        if start <= moment <= end:
+            series.append([at, float(row["water_level_m_navd88"])])
+    return series
 
 
 def _offset_text(moment: datetime) -> str:
@@ -89,9 +104,11 @@ def _offset_text(moment: datetime) -> str:
     return f"{offset[:3]}:{offset[3:]}"
 
 
-def build_ian_event(region: Region, water_level_csv: str, warnings_csv: str) -> dict[str, Any]:
-    """The Event file: the gauge and the scaled stations in the Region's datum, the Official Alerts
-    in force over the window, and the recorded gauge for the Official Gauge to play."""
+def build_ian_event(
+    region: Region, water_level_csv: str, warnings_csv: str, sensor_csv: str
+) -> dict[str, Any]:
+    """The Event file: the gauge and the USGS storm sensors in the Region's datum, the Official
+    Alerts in force over the window, and the recorded gauge for the Official Gauge to play."""
     zone = ZoneInfo(region.time_zone)
     start = datetime.fromisoformat(f"{EVENT_DATE}T{START}").replace(tzinfo=zone)
     end = datetime.fromisoformat(f"{EVENT_DATE}T{END}").replace(tzinfo=zone)
@@ -104,9 +121,8 @@ def build_ian_event(region: Region, water_level_csv: str, warnings_csv: str) -> 
         for row in _csv_rows(water_level_csv)
         if row["Water Level"] and start <= _utc(row["Date Time"]) <= end
     ]
-    peak_at, peak_feet = max(recorded, key=lambda reading: reading[1])
-    gauge_series = _series(recorded, 1, offset_m)
-    scale = BEACH_PEAK_FEET_MHHW / peak_feet
+    peak_at, _ = max(recorded, key=lambda reading: reading[1])
+    gauge_series = _gauge_series(recorded, offset_m)
     stations = [
         {
             "id": "fort-myers-gauge",
@@ -120,10 +136,11 @@ def build_ian_event(region: Region, water_level_csv: str, warnings_csv: str) -> 
                 "id": station_id,
                 "label": label,
                 "pos": list(pos),
-                "reconstructed": True,
-                "series": _series(recorded, scale, offset_m),
+                "reconstructed": False,
+                "series": series,
             }
-            for station_id, label, pos in RECONSTRUCTED_STATIONS
+            for instrument_id, station_id, label, pos in SENSOR_STATIONS
+            if (series := _sensor_series(sensor_csv, instrument_id, start, end))
         ),
     ]
 
@@ -156,10 +173,9 @@ def build_ian_event(region: Region, water_level_csv: str, warnings_csv: str) -> 
         "hazard": "storm_surge",
         "real": True,
         "note": (
-            "The Fort Myers gauge is the record. Fort Myers Beach Pier and Estero Bay are that "
-            "curve scaled to NHC's reported 12.7 ft above MHHW peak, not recorded, and in this "
-            "version of the curve their peak comes at the gauge's peak time. Rain, soil moisture "
-            "and pressure are hand-set to the shape of a hurricane passing, not measured."
+            "The Fort Myers gauge and six USGS storm sensors around Fort Myers Beach and Estero Bay "
+            "are the record. Rain, soil moisture and pressure are hand-set to the shape of a "
+            "hurricane passing, not measured."
         ),
         "date": EVENT_DATE,
         "utc_offset": _offset_text(start),
@@ -198,10 +214,13 @@ def build_ian_event(region: Region, water_level_csv: str, warnings_csv: str) -> 
     }
 
 
-def read_ian_event_sources(region_dir: Path) -> tuple[str, str]:
-    """The water-level and warnings files of the Region's `sources/` folder."""
+def read_ian_event_sources(region_dir: Path) -> tuple[str, str, str]:
+    """The gauge, warnings and storm sensor files of the Region's `sources/` folder."""
     sources = region_dir / "sources"
-    return (sources / WATER_LEVEL_FILE).read_text(), (sources / WARNINGS_FILE).read_text()
+    water, warnings, sensors = (
+        (sources / name).read_text() for name in (WATER_LEVEL_FILE, WARNINGS_FILE, SENSOR_FILE)
+    )
+    return water, warnings, sensors
 
 
 def main() -> None:

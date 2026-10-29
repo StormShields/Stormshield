@@ -19,7 +19,7 @@ UNPACKED_DIR = "files"
 RELEASES_URL = "https://github.com/StormShields/Stormshield/releases/download"
 # The version of each built-in Region's pack published as the Release `cache-pack-<region>-v<N>`
 # (scripts/cache-pack/README.md): publishing a new version means changing its number here.
-RELEASED_PACKS = {"nepal": 1, "fort-myers": 1}
+RELEASED_PACKS = {"nepal": 1, "fort-myers": 2}
 
 
 class InvalidCachePack(Exception):
