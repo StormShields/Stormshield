@@ -138,9 +138,11 @@ export function useSandboxNodes(inSandbox: boolean, onRegionSwitched: () => void
     async (name: string) => {
       setProblem(null);
       try {
-        setRegions(
-          await ask<SandboxRegions>("/api/sandbox/region", sendJson("POST", { region: name })),
+        const switched = await ask<SandboxRegions>(
+          "/api/sandbox/region",
+          sendJson("POST", { region: name }),
         );
+        setRegions(switched);
         onRegionSwitched();
       } catch (error) {
         console.error(error);

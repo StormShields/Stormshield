@@ -200,7 +200,8 @@ class Sandbox:
         _require_pack(pack)
         self._first = (region or Settings().region, pack)
         self._find_pack = find_pack
-        self._switching = threading.Lock()
+        # Shared with the Hub's controls, so a Sensor is never edited on a Mesh that is being replaced.
+        self._lock = threading.RLock()
         self._stack = ExitStack()
         self.hub = _Switchboard()
         self.network: InMemoryNetwork
@@ -265,11 +266,12 @@ class Sandbox:
                 region,
                 sensors_placed,
                 self._switch_region,
+                self._lock,
             ),
         )
 
     def _switch_region(self, region: str) -> None:
-        with self._switching:
+        with self._lock:
             if self._find_pack is None:
                 raise SandboxRefused("this Sandbox has no way to find another Region's Cache Pack")
             try:
@@ -303,6 +305,7 @@ class _Controls(SandboxControls):
         region: str,
         sensors_placed: int,
         switch_region: Callable[[str], None],
+        lock: threading.RLock,
     ) -> None:
         self._nodes = nodes
         self._pack = pack
@@ -310,7 +313,7 @@ class _Controls(SandboxControls):
         self._region = region
         self._switch_region = switch_region
         # The API runs on a threadpool: a Sensor being added is half on the Mesh until it is done.
-        self._lock = threading.RLock()
+        self._lock = lock
         # Sensors are numbered on from the Sandbox's own and never reused: a Sensor that came
         # back under an old id would restart its readings at seq 0, and the Hub would hide them.
         self._numbers = itertools.count(sensors_placed)
