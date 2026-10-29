@@ -4,7 +4,9 @@ import { EventClockTag } from "./EventClockTag";
 import type { EventClockFeed } from "./useEventClock";
 import { usePolledJson } from "./usePolledJson";
 
-type ReplayEvents = { events: { id: string; label: string; real: boolean }[] };
+type ReplayEvents = {
+  events: { id: string; label: string; real: boolean; reconstructed_stations: string[] }[];
+};
 type Phase = { id: string; label: string; event_t: number };
 type ReplayPhases = { phases: Phase[]; internet_cue_event_t: number };
 
@@ -74,6 +76,9 @@ export function ReplayControls({ eventClock }: { eventClock: EventClockFeed }) {
   const internetCueReached =
     clock !== null && replayPhases !== null && clock.event_t >= replayPhases.internet_cue_event_t;
 
+  const reconstructedStations =
+    replayEvents?.events.find((event) => event.id === shownEventId)?.reconstructed_stations ?? [];
+
   const shownRate = clock?.rate ?? pickedRate ?? DEFAULT_REPLAY_RATE;
 
   return (
@@ -98,6 +103,11 @@ export function ReplayControls({ eventClock }: { eventClock: EventClockFeed }) {
             ))}
           </select>
         </label>
+      )}
+      {reconstructedStations.length > 0 && (
+        <p role="status" aria-label="Reconstructed water" className="reconstructed-water">
+          Reconstructed, not recorded: {reconstructedStations.join(", ")}
+        </p>
       )}
       <EventClockTag clock={clock} />
       <div className="actions" role="group" aria-label="Replay speed">

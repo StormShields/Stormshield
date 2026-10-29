@@ -25,4 +25,7 @@ def test_the_picker_marks_a_made_up_event_as_not_real(meshed_nodes: MeshedNodes)
 
     listed = meshed_nodes["hub"].get("/api/replay/events").json()["events"]
 
-    assert [(event["id"], event["real"]) for event in listed] == [("made-up-storm-surge", False)]
+    assert {event["id"]: event["real"] for event in listed} == {
+        "ian-2022": True,
+        "made-up-storm-surge": False,
+    }

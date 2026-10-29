@@ -114,12 +114,13 @@ Details (name, position, special-needs, pet-friendly) live in the Cache Pack. On
 Sent by the Hub only, for the NOAA tide gauges listed in the Region file's `official_gauges`. While the Hub is online it asks NOAA CO-OPS for each station's latest water level every `NODE_GAUGE_POLL_SECONDS` (default 360, NOAA's own 6-minute rhythm) and repeats the newest level of each station every `NODE_GAUGE_REPEAT_SECONDS` (default 30), so a Node that joined late, or lost the internet, still holds the last official level.
 
 ```json
-{ "v": 1, "kind": "gauge", "agency": "NOAA", "station": "8725520", "level_m": 0.912, "observed": 1664404200 }
+{ "v": 1, "kind": "gauge", "agency": "NOAA", "station": "8725520", "level_m": 0.912, "observed": 1664404200, "mode": "live" }
 ```
 
 - `level_m` is metres in the Region's datum: NOAA's level above MHHW plus the gauge's `datum_offset`.
 - `observed` is when NOAA measured it, Unix seconds. A Node keeps the level with the highest `observed` per station, and ignores a station the Region does not list.
-- Never read by Flood Risk, a Surge or a Community Warning. `GET /api/state` carries `official_gauges`: one entry per gauge of the Region (`agency`, `station`, `label`, `pos`, `level_m`, `observed`; the last two are null until a level is heard).
+- `mode` is `live` (the default when absent) or `replay`. While an Event plays, the Hub stops asking NOAA and sends the Event file's recorded series for each gauge in `official_gauges`, interpolated at the Event clock, with `mode: "replay"` and `observed` the Event time. A replayed level always replaces the one held, since the clock can be reset, and so does a level of the other mode.
+- Never read by Flood Risk, a Surge or a Community Warning. `GET /api/state` carries `official_gauges`: one entry per gauge of the Region (`agency`, `station`, `label`, `pos`, `level_m`, `observed`, `mode`; the last three are null until a level is heard). The dashboard prefixes a `replay` level with "REPLAY".
 
 ## Flash flood replay additions
 
