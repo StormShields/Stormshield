@@ -100,7 +100,7 @@ class Mesh(Protocol):
     def subscribe(self, listener: MessageListener) -> None: ...
 
 
-def _metres_between(a: Position, b: Position) -> float:
+def metres_between(a: Position, b: Position) -> float:
     lat_a, lat_b = math.radians(a.latitude), math.radians(b.latitude)
     half_chord = (
         math.sin((lat_b - lat_a) / 2) ** 2
@@ -224,7 +224,7 @@ class InMemoryNetwork:
         return [name for name in self._positions if name in reached and name != sender]
 
     def _in_range(self, a: Position, b: Position) -> bool:
-        return self._radio_range_m is None or _metres_between(a, b) <= self._radio_range_m
+        return self._radio_range_m is None or metres_between(a, b) <= self._radio_range_m
 
 
 class InMemoryMesh:

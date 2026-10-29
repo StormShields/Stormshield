@@ -32,6 +32,7 @@ function node(
 // Everyone in range of the Hub.
 const WIDE: SandboxNodes = {
   radio_range_m: WIDE_RANGE_M,
+  suggested_sites: [],
   nodes: [
     node("hub", HUB_AT, { role: "hub", hops: 0, links: ["near", "far"] }),
     node("near", NEAR_AT, { links: ["hub"] }),
@@ -42,6 +43,7 @@ const WIDE: SandboxNodes = {
 // The range cut to the Hub's one near neighbour: "far" has no path left.
 const NARROW: SandboxNodes = {
   radio_range_m: NARROW_RANGE_M,
+  suggested_sites: [],
   nodes: [
     node("hub", HUB_AT, { role: "hub", hops: 0, links: ["near"] }),
     node("near", NEAR_AT, { links: ["hub"] }),
@@ -399,4 +401,50 @@ test("a Region with no pack shows the command that builds it", async () => {
     "scripts/build-cache-pack.sh fort-myers",
   );
   expect(picker).toHaveValue("nepal");
+});
+
+const BAY_SITE = {
+  label: "Coconut Point",
+  why: "Ian's surge came up the bay here",
+  position: [28.05, 85.3] as [number, number],
+};
+const WITH_A_SUGGESTED_SITE: SandboxNodes = { ...WIDE, suggested_sites: [BAY_SITE] };
+const WITH_THE_SITE_TAKEN: SandboxNodes = {
+  ...WIDE,
+  nodes: [...WIDE.nodes, node("s4", BAY_SITE.position, { links: ["hub"] })],
+};
+
+test("a suggested site shows its label and why, and a tap on it adds a Sensor there", async () => {
+  stubTheHub({
+    sandbox: true,
+    answer: WITH_A_SUGGESTED_SITE,
+    afterChange: WITH_THE_SITE_TAKEN,
+  });
+  await sandboxPanel();
+  const marker = await screen.findByRole("button", { name: "Add a Sensor at Coconut Point" });
+  expect(marker).toHaveTextContent("Ian's surge came up the bay here");
+
+  fireEvent.click(marker);
+
+  await waitFor(() =>
+    expect(sent).toEqual([
+      { method: "POST", path: "/api/sandbox/sensors", body: { latitude: 28.05, longitude: 85.3 } },
+    ]),
+  );
+  // The site is a Sensor now, so its faint marker is gone; removing the Sensor brings it back.
+  await waitFor(() =>
+    expect(screen.queryByRole("button", { name: "Add a Sensor at Coconut Point" })).toBeNull(),
+  );
+});
+
+test("removing a Sensor from a suggested site brings the faint marker back", async () => {
+  stubTheHub({ sandbox: true, answer: WITH_THE_SITE_TAKEN, afterChange: WITH_A_SUGGESTED_SITE });
+  const panel = await sandboxPanel();
+  expect(screen.queryByRole("button", { name: "Add a Sensor at Coconut Point" })).toBeNull();
+
+  fireEvent.click(await within(panel).findByRole("button", { name: "Remove s4" }));
+
+  expect(
+    await screen.findByRole("button", { name: "Add a Sensor at Coconut Point" }),
+  ).toBeInTheDocument();
 });

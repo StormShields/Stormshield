@@ -17,7 +17,14 @@ export type SandboxNode = {
   heard_warning: boolean;
 };
 
-export type SandboxNodes = { radio_range_m: number; nodes: SandboxNode[] };
+// A spot the Region's author suggests for a Sensor, shown while no Sensor sits there.
+export type SuggestedSite = { label: string; why: string; position: [number, number] };
+
+export type SandboxNodes = {
+  radio_range_m: number;
+  nodes: SandboxNode[];
+  suggested_sites: SuggestedSite[];
+};
 
 // The Regions the Sandbox can run (GET /api/sandbox/regions), and the one it runs now.
 export type SandboxRegions = {

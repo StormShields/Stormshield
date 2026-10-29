@@ -451,6 +451,7 @@ export function App() {
                 : null
             }
             onMoveSensor={moveSensor}
+            onAddSensor={addSensor}
           />
           {phone ? (
             <>
