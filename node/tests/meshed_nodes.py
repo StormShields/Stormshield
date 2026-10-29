@@ -16,6 +16,7 @@ from storm_shield.official_gauge import OfficialGaugeLevel
 from storm_shield.region import Region
 from storm_shield.replay import ReplayClockMessage
 from storm_shield.sandbox import HUB, SimulatedNodes
+from storm_shield.settings import Settings
 from storm_shield.shelter_status import ShelterStatus
 
 
@@ -25,6 +26,16 @@ def _no_internet(request: httpx.Request) -> httpx.Response:
 
 def _internet_is_up(request: httpx.Request) -> httpx.Response:
     return httpx.Response(204)
+
+
+FORT_MYERS_PACK = Path(__file__).parent / "fixtures" / "fort-myers" / "cache-pack.zip"
+
+
+def _hold_the_default_pack(settings: Settings) -> None:
+    """A Node on Fort Myers, the default Region, starts holding the Fort Myers fixture pack; one
+    on another Region (`NODE_REGION`) starts with none, as a Node that has downloaded nothing."""
+    if settings.region == "fort-myers":
+        CachePack(settings.cache_pack_dir).install(FORT_MYERS_PACK.read_bytes())
 
 
 def a_calm_day() -> list[Reading]:
@@ -61,13 +72,15 @@ class MeshedNodes:
         loaded_region: Region | None = None,
         **overrides: Any,
     ) -> None:
-        """Start Nodes that trust `HUB`; with a (directory, zip) pair each already holds that pack."""
+        """Start Nodes that trust `HUB`; with a (directory, zip) pair each already holds that pack, else the Fort Myers fixture pack."""
         for name in names:
             settings = self._nodes.settings(name, hub_identity=HUB, **overrides)
             if cache_pack:
                 directory, pack = cache_pack
                 settings = settings.model_copy(update={"cache_pack_dir": directory / name})
                 CachePack(directory / name).install(pack)
+            else:
+                _hold_the_default_pack(settings)
             self._nodes.start(settings, region=loaded_region)
 
     def start_sensor(
@@ -94,6 +107,8 @@ class MeshedNodes:
             directory, pack = cache_pack
             settings = settings.model_copy(update={"cache_pack_dir": directory / name})
             CachePack(directory / name).install(pack)
+        else:
+            _hold_the_default_pack(settings)
         self._nodes.start(settings, running=True)
 
     def start_hub(
@@ -124,6 +139,8 @@ class MeshedNodes:
                 update={"cache_pack_dir": directory / HUB, "data_dir": directory / HUB / "data"}
             )
             CachePack(directory / HUB).install(pack)
+        else:
+            _hold_the_default_pack(settings)
         weather_source = httpx.Client(transport=httpx.MockTransport(_no_internet))
         self._nodes.start(
             settings,

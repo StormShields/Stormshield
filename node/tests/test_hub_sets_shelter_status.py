@@ -73,7 +73,7 @@ def test_an_unknown_shelter_is_refused_with_422(meshed_nodes: MeshedNodes, tmp_p
 
 
 def test_a_hub_without_a_pack_refuses_changes(meshed_nodes: MeshedNodes) -> None:
-    meshed_nodes.start_hub()
+    meshed_nodes.start_hub(region="nepal")
     response = _set(meshed_nodes, GYM, False)
     assert response.status_code == 503
     assert "Cache Pack" in response.json()["detail"]
