@@ -26,18 +26,26 @@ export type SandboxNodes = {
   suggested_sites: SuggestedSite[];
 };
 
+// The Regions the Sandbox can run (GET /api/sandbox/regions), and the one it runs now.
+export type SandboxRegions = {
+  current: string;
+  regions: { name: string; label: string }[];
+};
+
 export type SandboxFeed = {
   // Null before the first answer, and while the page is not in the Sandbox.
   sandbox: SandboxNodes | null;
+  regions: SandboxRegions | null;
   // What the last change the Hub refused or failed to make said; cleared by the next change.
   problem: string | null;
   setRadioRange: (metres: number) => Promise<void>;
   addSensor: (lat: number, lon: number) => Promise<void>;
   moveSensor: (id: string, lat: number, lon: number) => Promise<void>;
   removeSensor: (id: string) => Promise<void>;
+  switchRegion: (name: string) => Promise<void>;
 };
 
-async function ask(path: string, init?: RequestInit): Promise<SandboxNodes> {
+async function ask<Answer = SandboxNodes>(path: string, init?: RequestInit): Promise<Answer> {
   const response = await fetch(path, init);
   if (!response.ok) {
     const { detail } = await response.json().catch(() => ({ detail: undefined }));
@@ -56,9 +64,11 @@ function sendJson(method: string, body?: unknown): RequestInit {
 
 // Polls the Sandbox's Node list while `inSandbox`. A change shows at once and then the Hub's
 // answer, so the circles, links and hops follow the slider, a new Sensor or a drag without waiting
-// for a poll.
-export function useSandboxNodes(inSandbox: boolean): SandboxFeed {
+// for a poll. `onRegionSwitched` runs once the Hub is on the new Region, so the page reads the
+// Region's state at once.
+export function useSandboxNodes(inSandbox: boolean, onRegionSwitched: () => void): SandboxFeed {
   const [sandbox, setSandbox] = useState<SandboxNodes | null>(null);
+  const [regions, setRegions] = useState<SandboxRegions | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   useEffect(() => {
     if (!inSandbox) return;
@@ -70,11 +80,17 @@ export function useSandboxNodes(inSandbox: boolean): SandboxFeed {
         })
         .catch((error) => console.error(error));
     void poll();
+    ask<SandboxRegions>("/api/sandbox/regions")
+      .then((answer) => {
+        if (!stopped) setRegions(answer);
+      })
+      .catch((error) => console.error(error));
     const timer = setInterval(poll, SANDBOX_POLL_MS);
     return () => {
       stopped = true;
       clearInterval(timer);
       setSandbox(null);
+      setRegions(null);
     };
   }, [inSandbox]);
 
@@ -125,9 +141,29 @@ export function useSandboxNodes(inSandbox: boolean): SandboxFeed {
     [change],
   );
 
+  const switchRegion = useCallback(
+    async (name: string) => {
+      setProblem(null);
+      try {
+        const switched = await ask<SandboxRegions>(
+          "/api/sandbox/region",
+          sendJson("POST", { region: name }),
+        );
+        setRegions(switched);
+        onRegionSwitched();
+      } catch (error) {
+        console.error(error);
+        setProblem(`Could not switch Region: ${(error as Error).message}`);
+      }
+    },
+    [onRegionSwitched],
+  );
+
   return {
     sandbox: inSandbox ? sandbox : null,
+    regions: inSandbox ? regions : null,
     problem,
+    switchRegion,
     setRadioRange,
     addSensor,
     moveSensor,

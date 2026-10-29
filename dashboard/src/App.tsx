@@ -76,9 +76,29 @@ export function App() {
   const floodRisk = state?.flood_risk ?? null;
   const region = state?.region ?? null;
   const hazard = state?.hazard ?? null;
-  const { sandbox, problem, setRadioRange, addSensor, moveSensor, removeSensor } = useSandboxNodes(
-    state?.sandbox != null,
-  );
+  // A Sandbox switch to another Region is a new map: its own frame, basemap and tiles. The first
+  // Region the page hears of is not a switch.
+  const [mapOf, setMapOf] = useState<{ region: string | null; generation: number }>({
+    region: null,
+    generation: 0,
+  });
+  if (region && mapOf.region !== region.name) {
+    setMapOf({
+      region: region.name,
+      generation: mapOf.region === null ? mapOf.generation : mapOf.generation + 1,
+    });
+  }
+  const mapGeneration = mapOf.generation;
+  const {
+    sandbox,
+    regions,
+    problem,
+    setRadioRange,
+    addSensor,
+    moveSensor,
+    removeSensor,
+    switchRegion,
+  } = useSandboxNodes(state?.sandbox != null, refresh);
   const [sandboxPanelOpen, setSandboxPanelOpen] = useState(true);
   const [placingSensor, setPlacingSensor] = useState(false);
   const eventClock = useEventClock(!unreachable);
@@ -90,7 +110,7 @@ export function App() {
   const toggleSelected = (id: string) => setSelectedId((current) => (current === id ? null : id));
   const { profile, storageProblem, save, remove } = useHouseholdProfile();
   const pager = usePager(nodes, profile?.home ?? null);
-  const cachePack = useCachePack();
+  const cachePack = useCachePack(region?.name ?? null);
   const [openShelterIds, showOpenShelterIds] = useOpenShelterIds();
   // Until a resident saves their own profile, an example home keeps the plan and Route on screen.
   const example = profile === null ? exampleHousehold(cachePack) : null;
@@ -249,6 +269,8 @@ export function App() {
   const sandboxPanel = sandbox && (
     <SandboxPanel
       sandbox={sandbox}
+      regions={regions}
+      onSwitchRegion={switchRegion}
       problem={problem}
       onSetRadioRange={setRadioRange}
       placing={placingSensor}
@@ -378,6 +400,7 @@ export function App() {
         <div className="stage">
           {!phone && <WarningBand pending={pending} nodes={allNodes} thisNodeId={thisNodeId} />}
           <NodeMap
+            key={mapGeneration}
             nodes={shows("nodes") ? nodes : []}
             rises={rises}
             stormSignalOn={shows("storm-signal") && (floodRisk?.storm_signal.on ?? false)}

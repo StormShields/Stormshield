@@ -3,7 +3,7 @@ import { Panel, type PanelControl } from "./Panel";
 import { useRegion } from "./RegionContext";
 import { ReplayControls } from "./ReplayControls";
 import type { EventClockFeed } from "./useEventClock";
-import type { SandboxNode, SandboxNodes } from "./useSandboxNodes";
+import type { SandboxNode, SandboxNodes, SandboxRegions } from "./useSandboxNodes";
 
 const MIN_RANGE_KM = 0.1;
 const MAX_RANGE_KM = 50;
@@ -11,6 +11,8 @@ const RANGE_STEP_KM = 0.1;
 
 type Props = {
   sandbox: SandboxNodes;
+  regions: SandboxRegions | null;
+  onSwitchRegion: (name: string) => Promise<void>;
   problem: string | null;
   onSetRadioRange: (metres: number) => Promise<void>;
   // "Add Sensor" arms the map: the next tap places a Sensor. Pressing it again disarms.
@@ -36,6 +38,8 @@ function warningText(node: SandboxNode, warningSent: boolean): string {
 
 export function SandboxPanel({
   sandbox,
+  regions,
+  onSwitchRegion,
   problem,
   onSetRadioRange,
   placing,
@@ -51,6 +55,21 @@ export function SandboxPanel({
   return (
     <Panel label="Sandbox" {...panel}>
       <p className="sandbox-label">SIMULATED</p>
+      {regions && (
+        <label className="sandbox-region">
+          Region
+          <select
+            value={regions.current}
+            onChange={(event) => void onSwitchRegion(event.target.value)}
+          >
+            {regions.regions.map(({ name, label }) => (
+              <option key={name} value={name}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <label className="sandbox-range">
         Radio range
         <input

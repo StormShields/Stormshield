@@ -37,6 +37,21 @@ class RadioRange(BaseModel):
     radio_range_m: float = Field(gt=0)
 
 
+class SandboxRegion(BaseModel):
+    # The folder under regions/, which `--region` and the switch call take.
+    name: str
+    label: str
+
+
+class SandboxRegions(BaseModel):
+    current: str
+    regions: list[SandboxRegion]
+
+
+class RegionChoice(BaseModel):
+    region: str
+
+
 class Spot(BaseModel):
     """Where a Sensor goes: a place the user tapped or dropped it on the map."""
 
@@ -64,3 +79,7 @@ class SandboxControls(Protocol):
     def move_sensor(self, sensor_id: str, spot: Spot) -> SandboxNodes: ...
 
     def remove_sensor(self, sensor_id: str) -> SandboxNodes: ...
+
+    def regions(self) -> SandboxRegions: ...
+
+    def switch_region(self, region: str) -> SandboxRegions: ...
