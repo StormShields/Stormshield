@@ -19,9 +19,18 @@ class SandboxNode(BaseModel):
     heard_warning: bool
 
 
+class SuggestedSite(BaseModel):
+    """A spot the Region's author suggests for a Sensor that has none now."""
+
+    label: str
+    why: str
+    position: tuple[float, float]
+
+
 class SandboxNodes(BaseModel):
     radio_range_m: float
     nodes: list[SandboxNode]
+    suggested_sites: list[SuggestedSite]
 
 
 class RadioRange(BaseModel):

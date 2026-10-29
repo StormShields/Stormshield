@@ -2099,3 +2099,18 @@ section p.flood-prone-caption {
   white-space: nowrap;
   transform: translateY(1.6rem);
 }
+
+/* A spot the Region suggests for a Sensor; a tap turns it into one. */
+.suggested-site-marker button {
+  display: grid;
+  max-width: 10rem;
+  padding: 0.1rem 0.4rem;
+  border: 1px dashed var(--suggested-site);
+  border-radius: 0.25rem;
+  background: transparent;
+  color: var(--suggested-site);
+  font-size: 0.7rem;
+  text-align: left;
+  opacity: var(--suggested-site-opacity);
+  cursor: pointer;
+}

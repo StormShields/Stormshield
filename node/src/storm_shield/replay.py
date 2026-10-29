@@ -140,7 +140,7 @@ class CoastSurface(BaseModel):
             return None
         weighted, weights = 0.0, 0.0
         for station in self.stations:
-            distance = _metres_between(spot.position, station.pos)
+            distance = metres_between(spot.position, station.pos)
             level = station.level_at(elapsed)
             if distance < 1:
                 weighted, weights = level, 1.0
@@ -152,7 +152,7 @@ class CoastSurface(BaseModel):
         return level if level > spot.ground_m else None
 
 
-def _metres_between(position: Position, station: tuple[float, float]) -> float:
+def metres_between(position: Position, station: tuple[float, float]) -> float:
     # Flat-earth distance is close enough across one Region.
     metres_per_degree_of_longitude = METRES_PER_DEGREE_OF_LATITUDE * math.cos(
         math.radians(position.latitude)

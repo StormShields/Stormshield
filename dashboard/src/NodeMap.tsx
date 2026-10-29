@@ -249,6 +249,7 @@ type Props = {
   // what a tap does otherwise.
   placingSensor: { onPlace: (spot: Home) => void; onCancel: () => void } | null;
   onMoveSensor: (id: string, lat: number, lon: number) => Promise<void>;
+  onAddSensor: (lat: number, lon: number) => Promise<void>;
 };
 
 export function NodeMap({
@@ -292,6 +293,7 @@ export function NodeMap({
   sandbox,
   placingSensor,
   onMoveSensor,
+  onAddSensor,
 }: Props) {
   const [map, setMap] = useState<MapLibreMap | null>(null);
   const [styleReady, setStyleReady] = useState(false);
@@ -736,6 +738,22 @@ export function NodeMap({
               no path to Hub
             </MapMarker>
           ))}
+      {map &&
+        sandbox?.suggested_sites.map((site) => (
+          <MapMarker
+            key={`${site.position[0]},${site.position[1]}`}
+            map={map}
+            lat={site.position[0]}
+            lon={site.position[1]}
+            className="suggested-site-marker"
+            onClick={() => void onAddSensor(site.position[0], site.position[1])}
+          >
+            <button type="button" aria-label={`Add a Sensor at ${site.label}`} title={site.why}>
+              <strong>{site.label}</strong>
+              <span>{site.why}</span>
+            </button>
+          </MapMarker>
+        ))}
       {stormSignalOn && <div className="storm-vignette" aria-hidden="true" />}
     </section>
   );

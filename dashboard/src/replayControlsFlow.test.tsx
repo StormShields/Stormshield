@@ -61,7 +61,8 @@ beforeEach(() => {
     if (path === "/api/replay/phases?event=bhote-koshi-2026") {
       return Response.json({ phases: PHASES, internet_cue_event_t: INTERNET_CUE });
     }
-    if (path === "/api/sandbox/nodes") return Response.json({ radio_range_m: 40000, nodes: [] });
+    if (path === "/api/sandbox/nodes")
+      return Response.json({ radio_range_m: 40000, nodes: [], suggested_sites: [] });
     if (path === "/api/state") {
       return Response.json(fakeNodeState({ id: "hub", name: "hub", sandbox }));
     }

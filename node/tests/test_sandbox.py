@@ -385,3 +385,43 @@ def test_a_sensor_the_registry_has_no_room_for_is_refused_and_not_left_behind(
     # The Hub, the Region's Sensors and the ones that did fit: the refused one is not among them.
     assert len(listed) > 1 + len(SENSOR_SITES)
     assert len(listed) < 20
+
+
+def _suggested(sandbox: Sandbox) -> list[dict[str, Any]]:
+    answer: list[dict[str, Any]] = (
+        TestClient(sandbox.hub).get("/api/sandbox/nodes").json()["suggested_sites"]
+    )
+    return answer
+
+
+def test_every_suggested_site_has_a_sensor_at_the_start(pack: Path, scratch: Path) -> None:
+    with Sandbox(pack) as sandbox:
+        assert _suggested(sandbox) == []
+
+
+def test_a_site_left_without_a_sensor_is_suggested_with_its_label_and_why(
+    pack: Path, scratch: Path
+) -> None:
+    with Sandbox(pack) as sandbox:
+        site = SENSOR_SITES[0]
+        _sensors(sandbox, "DELETE", f"/{site.name}")
+        removed = _suggested(sandbox)
+        _sensors(sandbox, "PUT", f"/{SENSOR_SITES[1].name}", **UP_THE_HILL)
+        moved = _suggested(sandbox)
+
+    assert [each["position"] for each in removed] == [[site.latitude, site.longitude]]
+    assert removed[0]["label"]
+    assert removed[0]["why"]
+    assert len(moved) == 2
+
+
+def test_a_sensor_added_on_a_suggested_site_takes_the_suggestion_away(
+    pack: Path, scratch: Path
+) -> None:
+    with Sandbox(pack) as sandbox:
+        site = SENSOR_SITES[0]
+        _sensors(sandbox, "DELETE", f"/{site.name}")
+        _sensors(sandbox, "POST", "", latitude=site.latitude, longitude=site.longitude)
+        suggested = _suggested(sandbox)
+
+    assert suggested == []
