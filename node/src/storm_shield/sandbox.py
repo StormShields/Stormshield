@@ -42,8 +42,8 @@ HUB = "hub"
 # A suggested site counts as taken by a Sensor this close: a tap on its marker lands on the pixel,
 # not the exact coordinate.
 SITE_TAKEN_WITHIN_M = 50.0
-# Wide enough for the Region's sensor sites, whose longest gap is about 33 km. When the Sandbox
-# places its Sensors on a Region's sites (#46) this becomes the 1 km the spec asks for.
+# Wide enough for the Region's sensor sites, whose longest gap is about 33 km; the slider narrows
+# it towards the spec's 1 km.
 SANDBOX_RADIO_RANGE_M = 40_000.0
 DOWNLOAD_TIMEOUT_SECONDS = 120
 REPO = Path(__file__).resolve().parents[3]
