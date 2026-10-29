@@ -26,13 +26,13 @@ SITE_NAMES = {site.name for site in SENSOR_SITES}
 
 
 def _terrain() -> dict[str, bytes]:
-    """The datum under the Hub and every Sensor, so the Event's water reaches them, and 10 m of
-    hill at UP_THE_HILL."""
+    """Ground a metre under the datum at the Hub and every Sensor, so the Event's water reaches
+    them even before the surge (Ian starts below zero), and 10 m of hill at UP_THE_HILL."""
     return {
         **{
             path: tile
             for site in (HUB_SITE, *SENSOR_SITES)
-            for path, tile in ground_at(site.latitude, site.longitude).items()
+            for path, tile in ground_at(site.latitude, site.longitude, metres=-1).items()
         },
         **ground_at(**UP_THE_HILL, metres=10),
     }
