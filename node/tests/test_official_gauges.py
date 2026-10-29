@@ -12,7 +12,7 @@ from storm_shield.official_gauge import OfficialGaugeLevel
 from storm_shield.region import load_region, region_path
 
 STATION = "8725520"
-# Fort Myers has no Events yet, which a Node needs, so Nepal's Region stands in with Fort Myers's gauge.
+# Nepal's Region stands in, with Fort Myers's gauge: these tests need no pack and no coast.
 REGION = load_region(region_path("nepal")).model_copy(
     update={"official_gauges": load_region(region_path("fort-myers")).official_gauges}
 )

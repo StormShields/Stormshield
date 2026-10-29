@@ -42,6 +42,7 @@
   --risk-low: var(--green-400);
   --risk-elevated: var(--amber-400);
   --replay-cue: var(--amber-400);
+  --reconstructed-note: var(--amber-400);
   --risk-high: var(--red-300);
   --official-bg: var(--paper-50);
   --official-ink: var(--blue-950);

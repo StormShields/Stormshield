@@ -82,6 +82,8 @@ export type OfficialGauge = {
   level_m: number | null;
   // Unix seconds, when the agency measured it.
   observed: number | null;
+  // "replay" is a recorded level played on the Event clock; null before any level.
+  mode: "live" | "replay" | null;
 };
 
 // The answer of GET /api/state: one consistent instant of this Node's view of the Mesh.
