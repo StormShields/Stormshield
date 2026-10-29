@@ -26,14 +26,15 @@ START = "06:00:00"
 END = "21:00:00"
 DEFAULT_RATE = 30
 # The USGS storm sensors (STN instrument id) whose water level is a station: the readings are metres
-# above NAVD88, the Region's datum, so they need no offset. Positions are the sensors' deployment sites.
+# above NAVD88, the Region's datum, so they need no offset. Positions are the sensors' deployment
+# sites.
 SENSOR_STATIONS = (
     ("10768", "fort-myers-beach-pier", "Fort Myers Beach Pier", (26.4523944, -81.95665833)),
     ("10773", "matanzas-pass", "Matanzas Pass", (26.45836, -81.95331)),
     ("10747", "lovers-key-big-carlos-pass", "Big Carlos Pass at Lovers Key", (26.40377, -81.878)),
     ("10855", "coconut-point-marina", "Estero Bay at Coconut Point Marina", (26.39993, -81.84036)),
     ("10854", "san-carlos-bay-punta-rassa", "San Carlos Bay at Punta Rassa", (26.4843, -82.01058)),
-    ("10861", "mullock-creek-marina", "Mullock Creek at Mullock Creek Marina", (26.47333, -81.85167)),
+    ("10861", "mullock-creek-marina", "Mullock Creek at the Marina", (26.47333, -81.85167)),
 )
 # NWS Tampa Bay zones for Lee County: coastal and inland.
 LEE_COUNTY_ZONES = {"FLZ165", "FLZ265"}
@@ -49,7 +50,7 @@ PHENOMENA = {
 SIGNIFICANCE = {"A": "Watch", "W": "Warning"}
 SOURCES = {
     "noaa-8725520": "https://tidesandcurrents.noaa.gov/stationhome.html?id=8725520",
-    "usgs-stn-ian": "https://stn.wim.usgs.gov/FEV/#2022Ian",
+    "usgs-stn-ian": "https://apps.usgs.gov/stnweb/",
     "nws-tbw-warnings": "https://mesonet.agron.iastate.edu/request/gis/watchwarn.phtml",
 }
 LANDFALL = "15:05:00"
@@ -173,8 +174,8 @@ def build_ian_event(
         "hazard": "storm_surge",
         "real": True,
         "note": (
-            "The Fort Myers gauge and six USGS storm sensors around Fort Myers Beach and Estero Bay "
-            "are the record. Rain, soil moisture and pressure are hand-set to the shape of a "
+            "The Fort Myers gauge and six USGS storm sensors around Fort Myers Beach and Estero "
+            "Bay are the record. Rain, soil moisture and pressure are hand-set to the shape of a "
             "hurricane passing, not measured."
         ),
         "date": EVENT_DATE,
@@ -217,10 +218,11 @@ def build_ian_event(
 def read_ian_event_sources(region_dir: Path) -> tuple[str, str, str]:
     """The gauge, warnings and storm sensor files of the Region's `sources/` folder."""
     sources = region_dir / "sources"
-    water, warnings, sensors = (
-        (sources / name).read_text() for name in (WATER_LEVEL_FILE, WARNINGS_FILE, SENSOR_FILE)
+    return (
+        (sources / WATER_LEVEL_FILE).read_text(),
+        (sources / WARNINGS_FILE).read_text(),
+        (sources / SENSOR_FILE).read_text(),
     )
-    return water, warnings, sensors
 
 
 def main() -> None:
