@@ -56,6 +56,10 @@ _Avoid_: failover, election, backup hub
 A Node that currently has no internet and still takes part in the Mesh. Each Node reports only its own state: Online or Mesh-only. Online-only features (live feeds) stop while a Node is Mesh-only; everything carried over the Mesh keeps working.
 _Avoid_: offline node
 
+**Camera**:
+A Sensor Node that declares the `camera` kind. Its Community Readings say a new picture exists; the picture itself stays on the Node and never crosses the Mesh, because a picture can show what a Fuzzed Position hides. Today's pictures are drawn from an Event's water level and marked SIMULATED.
+_Avoid_: webcam, feed, clip
+
 **Viewer**:
 A phone or browser that shows the dashboard by connecting to a Node, without being part of the Mesh itself.
 _Avoid_: client, user device
