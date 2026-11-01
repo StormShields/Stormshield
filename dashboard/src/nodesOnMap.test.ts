@@ -1,4 +1,4 @@
-import { fakeNodeSnapshot, nepalNodeState } from "./fakeNodeState";
+import { fakeNodeSnapshot, fakeNodeState, nepalNodeState } from "./fakeNodeState";
 import { nodesOnMap } from "./nodesOnMap";
 
 test("a Node shows its water level, position and simulated flag", () => {
@@ -85,4 +85,37 @@ test("this Node comes first, then Registered Nodes A to Z, then Unverified Nodes
     ],
   });
   expect(nodesOnMap(state).map((node) => node.label)).toEqual(["porch", "garage", "shed", "ccc"]);
+});
+
+test("the new kinds are shown in the Region's units, and a camera as a picture number", () => {
+  const measurements = {
+    air_temperature: { value: 30, unit: "°C" },
+    humidity: { value: 80, unit: "%" },
+    wind_speed: { value: 10, unit: "m/s" },
+    camera: { value: 57, unit: "pic" },
+  };
+  const shown = (state: ReturnType<typeof nepalNodeState>) =>
+    nodesOnMap({
+      ...state,
+      nodes: [fakeNodeSnapshot("mast", { measurements })],
+    })[0].measurements.map((measurement) => measurement.shown);
+  expect(shown(nepalNodeState())).toEqual(["30 °C", "80 %", "36 km/h", "Picture 57"]);
+  expect(shown(fakeNodeState())).toEqual(["86 °F", "80 %", "22 mph", "Picture 57"]);
+});
+
+test("a known kind in a non-wire unit and a kind named constructor are shown as sent", () => {
+  const state = nepalNodeState({
+    nodes: [
+      fakeNodeSnapshot("mast", {
+        measurements: JSON.parse(
+          '{"rain_rate":{"value":2,"unit":"in/h"},"constructor":{"value":3,"unit":"x"},"__proto__":{"value":4,"unit":"y"}}',
+        ),
+      }),
+    ],
+  });
+  expect(nodesOnMap(state)[0].measurements.map((m) => [m.kind, m.shown])).toEqual([
+    ["rain_rate", "2 in/h"],
+    ["constructor", "3 x"],
+    ["__proto__", "4 y"],
+  ]);
 });
