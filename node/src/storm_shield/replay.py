@@ -191,18 +191,6 @@ class MeasurementTrack(BaseModel):
     decimals: int
     points: list[tuple[int, float]]
 
-    @model_validator(mode="after")
-    def _points_fit(self) -> Self:
-        if self.decimals < 0:
-            raise ValueError(f"track {self.kind}: decimals cannot be negative")
-        try:
-            _require_increasing([at for at, _ in self.points], "its points")
-        except ValueError as error:
-            raise ValueError(f"track {self.kind}: {error}") from error
-        if not all(math.isfinite(value) for _, value in self.points):
-            raise ValueError(f"track {self.kind}: every value must be a finite number")
-        return self
-
     def value_at(self, elapsed: int) -> float:
         return _interpolate(elapsed, [(at, (value,)) for at, value in self.points])[0]
 
@@ -273,7 +261,8 @@ class Event(BaseModel):
     official_gauges: list[ReplayedGauge] = []
     surface: RiverSurface | CoastSurface
     weather: list[WeatherKeyframe]
-    # Extra kinds beyond the flood four; only a made-up Event has any.
+    # Extra kinds beyond the flood four. Real Events carry none: nobody has researched these kinds
+    # for them.
     tracks: list[MeasurementTrack] = []
 
     @field_validator("weather")
@@ -291,15 +280,22 @@ class Event(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def _tracks_are_free_kinds(self) -> Self:
+    def _tracks_are_usable(self) -> Self:
         seen: set[str] = set()
         for track in self.tracks:
-            if track.kind in _KINDS_WITHOUT_A_TRACK or track.kind in seen:
+            where = f"Event {self.id}, track {track.kind}"
+            if track.kind in _KINDS_WITHOUT_A_TRACK:
                 raise ValueError(
-                    f"Event {self.id}: track {track.kind} is a kind the Event already measures "
-                    "or the Node makes itself"
+                    f"{where}: {track.kind} has its own source, so it cannot be a track"
                 )
+            if track.kind in seen:
+                raise ValueError(f"{where}: another track already has this kind")
             seen.add(track.kind)
+            if track.decimals < 0:
+                raise ValueError(f"{where}: decimals cannot be negative")
+            _require_increasing([at for at, _ in track.points], f"{where}: its points")
+            if not all(math.isfinite(value) for _, value in track.points):
+                raise ValueError(f"{where}: every value must be a finite number")
         return self
 
     def event_t_at(self, clock_time: str) -> int:
