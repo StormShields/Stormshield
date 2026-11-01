@@ -143,5 +143,64 @@
       "soil_pct": 84,
       "pressure_hpa": 1004
     }
+  ],
+  "tracks": [
+    {
+      "kind": "air_temperature",
+      "unit": "°C",
+      "decimals": 1,
+      "points": [
+        [
+          0,
+          14.0
+        ],
+        [
+          1800,
+          12.5
+        ],
+        [
+          3600,
+          11.0
+        ]
+      ]
+    },
+    {
+      "kind": "humidity",
+      "unit": "%",
+      "decimals": 0,
+      "points": [
+        [
+          0,
+          82
+        ],
+        [
+          1800,
+          90
+        ],
+        [
+          3600,
+          93
+        ]
+      ]
+    },
+    {
+      "kind": "wind_speed",
+      "unit": "m/s",
+      "decimals": 1,
+      "points": [
+        [
+          0,
+          2.0
+        ],
+        [
+          1800,
+          6.5
+        ],
+        [
+          3600,
+          3.0
+        ]
+      ]
+    }
   ]
 }

@@ -30,5 +30,6 @@ Area gotchas that are still true. Claude Code loads this file (through `CLAUDE.m
 - **Never log `httpx` errors whole**: their message holds the URL, and the URL can hold a key. `create_app` keeps the `httpx` logger at WARNING for the same reason.
 - **`RNS.Identity.from_file` returns `None` on a damaged file** and `to_file` writes 644; `load_or_create_identity` handles both.
 - **Mesh decode and delivery go through `mesh.decode_message` and `deliver_to_listeners`** for both Meshes; add rules there.
+- **A Sensor sends an Event's extra `tracks` (made-up Events only) only when `NODE_MEASURES` names the kind**; the default names the flood four, so only the Sandbox (`SANDBOX_MEASURES`) or a Node told so sends `air_temperature`, `humidity`, `wind_speed`.
 
 Networking and Pi lessons (firewalls, TCP peers) are in `pi/AGENTS.md`.

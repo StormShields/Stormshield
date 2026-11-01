@@ -175,6 +175,26 @@ def _require_increasing(positions: list[float], what: str) -> None:
         raise ValueError(f"{what} must be a non-empty list in strictly increasing order")
 
 
+# Kinds a track cannot carry: the flood four have their own sources, and the Node makes the
+# camera's Picture itself.
+_KINDS_WITHOUT_A_TRACK = frozenset(
+    {"water_level", "rain_rate", "soil_moisture", "air_pressure", "camera"}
+)
+
+
+class MeasurementTrack(BaseModel):
+    """One extra kind the Event measures: a single value for the whole Region, on straight lines
+    between (seconds after the Event starts, value) points."""
+
+    kind: str
+    unit: str
+    decimals: int
+    points: list[tuple[int, float]]
+
+    def value_at(self, elapsed: int) -> float:
+        return _interpolate(elapsed, [(at, (value,)) for at, value in self.points])[0]
+
+
 class Phase(BaseModel):
     id: str
     at: str
@@ -241,6 +261,9 @@ class Event(BaseModel):
     official_gauges: list[ReplayedGauge] = []
     surface: RiverSurface | CoastSurface
     weather: list[WeatherKeyframe]
+    # Extra kinds beyond the flood four. Real Events carry none: nobody has researched these kinds
+    # for them.
+    tracks: list[MeasurementTrack] = []
 
     @field_validator("weather")
     @classmethod
@@ -254,6 +277,25 @@ class Event(BaseModel):
         if coast != (self.hazard == "storm_surge"):
             wanted = "coast" if self.hazard == "storm_surge" else "river"
             raise ValueError(f"a {self.hazard} Event needs a {wanted} surface")
+        return self
+
+    @model_validator(mode="after")
+    def _tracks_are_usable(self) -> Self:
+        seen: set[str] = set()
+        for track in self.tracks:
+            where = f"Event {self.id}, track {track.kind}"
+            if track.kind in _KINDS_WITHOUT_A_TRACK:
+                raise ValueError(
+                    f"{where}: {track.kind} has its own source, so it cannot be a track"
+                )
+            if track.kind in seen:
+                raise ValueError(f"{where}: another track already has this kind")
+            seen.add(track.kind)
+            if track.decimals < 0:
+                raise ValueError(f"{where}: decimals cannot be negative")
+            _require_increasing([at for at, _ in track.points], f"{where}: its points")
+            if not all(math.isfinite(value) for _, value in track.points):
+                raise ValueError(f"{where}: every value must be a finite number")
         return self
 
     def event_t_at(self, clock_time: str) -> int:
@@ -337,6 +379,10 @@ class Event(BaseModel):
         water_m = self.surface.level_at(spot, elapsed)
         if water_m is not None:
             measurements.append(("water_level", water_m, "m", 3))
+        measurements.extend(
+            (track.kind, track.value_at(elapsed), track.unit, track.decimals)
+            for track in self.tracks
+        )
         return [
             Reading(kind=kind, value=round(value, decimals), unit=unit, timestamp=timestamp)
             for kind, value, unit, decimals in measurements

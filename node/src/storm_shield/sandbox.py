@@ -435,6 +435,13 @@ class _Controls(SandboxControls):
             self._unregistered.discard(name)
 
 
+# Every kind an Event can offer, so a made-up Event's tracks reach the Hub; a kind the played Event
+# lacks is never sent.
+SANDBOX_MEASURES = (
+    "water_level,rain_rate,soil_moisture,air_pressure,air_temperature,humidity,wind_speed"
+)
+
+
 def _settings(nodes: SimulatedNodes, site: NodeSite, **overrides: Any) -> Settings:
     return nodes.settings(
         site.name,
@@ -449,7 +456,7 @@ def _settings(nodes: SimulatedNodes, site: NodeSite, **overrides: Any) -> Settin
 def _start_sensor(nodes: SimulatedNodes, site: NodeSite, pack: bytes) -> TestClient:
     """A running Sensor that already holds the Cache Pack: a coast Sensor reads its ground height
     from the pack's terrain, and would stay dry until it had downloaded one."""
-    settings = _settings(nodes, site)
+    settings = _settings(nodes, site, measures=SANDBOX_MEASURES)
     CachePack(settings.cache_pack_dir).install(pack)
     return nodes.start(settings, running=True)
 
