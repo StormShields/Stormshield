@@ -9,7 +9,13 @@ from typing import Any
 import RNS
 
 from storm_shield.community_reading import CommunityReading
-from storm_shield.mesh import Message, MessageListener, decode_message, deliver_to_listeners
+from storm_shield.mesh import (
+    Message,
+    MessageListener,
+    decode_message,
+    deliver_to_listeners,
+    refuse_over_one_packet,
+)
 from storm_shield.node_registry import SignUp
 from storm_shield.settings import Settings
 
@@ -165,8 +171,7 @@ class ReticulumMesh:
 
     def publish(self, message: Message) -> None:
         packet = sign(self._key, message)
-        if len(packet) > RNS.Packet.PLAIN_MDU:
-            raise ValueError(f"signed message is {len(packet)} bytes, over one Reticulum packet")
+        refuse_over_one_packet(len(packet))
         sent = bool(RNS.Packet(self._readings_out, packet).send())
         # Log only when sending starts or stops failing: a Node with no peers
         # fails on every publish, and a warning each time buries the real logs.
