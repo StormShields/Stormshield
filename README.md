@@ -53,7 +53,7 @@ A local-first community sensor network: Nodes share readings over a local Mesh t
 scripts/sandbox.sh            # needs uv and pnpm; the first run downloads the Cache Pack and builds the dashboard
 ```
 
-It opens `http://localhost:8000`. Pick the Bhote Koshi Event in the Sandbox Panel and press Start, or jump straight to "Surge reaches the border".
+It opens `http://127.0.0.1:8000`. Pick the Bhote Koshi Event in the Sandbox Panel and press Start, or jump straight to "Surge reaches the border".
 
 ## How it's built
 

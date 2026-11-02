@@ -40,12 +40,12 @@ from storm_shield.sandbox_api import (
     SuggestedSite,
     UnknownSensor,
 )
+from storm_shield.sandbox_app import LOOPBACK_HOST
 from storm_shield.settings import Settings
 
 logger = logging.getLogger(__name__)
 
 HUB = "hub"
-LOOPBACK_HOST = "127.0.0.1"
 # A suggested site counts as taken by a Sensor this close: a tap on its marker lands on the pixel,
 # not the exact coordinate.
 SITE_TAKEN_WITHIN_M = 50.0
@@ -637,7 +637,9 @@ def run() -> None:
 def sandbox_server_config(app: Any, port: int) -> uvicorn.Config:
     """Always loopback: the Sandbox is for the one person at this computer, and nothing here or
     on the command line widens it."""
-    return uvicorn.Config(app, host=LOOPBACK_HOST, port=port)
+    # No log_config: uvicorn's own sends its lines to stderr, which the app has no terminal for;
+    # without it they reach the root logger, and so the app's log file.
+    return uvicorn.Config(app, host=LOOPBACK_HOST, port=port, log_config=None, access_log=False)
 
 
 def serve(port: int, region: str, pack: Path | None = None) -> None:

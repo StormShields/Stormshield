@@ -16,11 +16,11 @@ from pathlib import Path
 
 import httpx
 
-from storm_shield.sandbox import LOOPBACK_HOST, serve
 from storm_shield.settings import Settings
 
 logger = logging.getLogger(__name__)
 
+LOOPBACK_HOST = "127.0.0.1"
 PREFERRED_PORT = 8000
 LOG_FILE_NAME = "storm-shield-sandbox.log"
 FAILURE_PAGE_NAME = "storm-shield-sandbox-failed.html"
@@ -53,13 +53,31 @@ def free_port() -> int:
         return int(probe.getsockname()[1])
 
 
-def write_failure_page(error: BaseException, log: Path) -> Path:
+class _LastServerError(logging.Handler):
+    """Remembers uvicorn's last error line: when it cannot bind it exits with just a number, and
+    the reason ("address already in use") is only in what it logged."""
+
+    def __init__(self) -> None:
+        super().__init__(level=logging.ERROR)
+        self.message = ""
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.message = record.getMessage()
+
+
+def _reason(error: BaseException, server_error: str) -> str:
+    if isinstance(error, SystemExit):
+        return server_error or f"the server stopped while starting (exit code {error.code})"
+    return str(error) or type(error).__name__
+
+
+def write_failure_page(reason: str, log: Path) -> Path:
     # A fresh folder, so a file planted at a predictable name in the shared temp folder is not followed.
     page = Path(tempfile.mkdtemp(prefix="storm-shield-")) / FAILURE_PAGE_NAME
     page.write_text(
         "<!doctype html><meta charset=utf-8><title>Storm Shield Sandbox could not start</title>"
         "<h1>Storm Shield Sandbox could not start</h1>"
-        f"<p>{html.escape(str(error) or type(error).__name__)}</p>"
+        f"<p>{html.escape(reason)}</p>"
         f"<p>The full log is at <code>{html.escape(str(log))}</code></p>",
         encoding="utf-8",
     )
@@ -70,15 +88,27 @@ def main() -> None:
     log = log_file()
     logging.basicConfig(level=logging.INFO, filename=log, force=True)
     logging.getLogger("httpx").setLevel(logging.WARNING)
+    last_server_error = _LastServerError()
+    logging.getLogger("uvicorn.error").addHandler(last_server_error)
+    port = PREFERRED_PORT
+    # Whatever went wrong, the person double-clicking has no terminal: it all has to reach the page.
+    # That includes importing the Sandbox, which reads its Region, and uvicorn exiting with
+    # SystemExit when it cannot bind.
     try:
         if sandbox_is_running_on(PREFERRED_PORT):
             webbrowser.open(f"http://{LOOPBACK_HOST}:{PREFERRED_PORT}")
             return
+        from storm_shield.sandbox import serve
+
         port = PREFERRED_PORT if _bindable(PREFERRED_PORT) else free_port()
         serve(port, Settings().region)
-    # Whatever went wrong, the person double-clicking has no terminal: it all has to reach the page.
-    # uvicorn exits with SystemExit when it cannot bind, which is also a failure to start.
     except (Exception, SystemExit) as error:  # noqa: BLE001
         logger.error("the Sandbox could not start\n%s", traceback.format_exc())
-        webbrowser.open(write_failure_page(error, log).as_uri())
+        # Two quick launches both find 8000 free and the slower one loses the bind: the winner is
+        # the Sandbox to open.
+        if port == PREFERRED_PORT and sandbox_is_running_on(PREFERRED_PORT):
+            webbrowser.open(f"http://{LOOPBACK_HOST}:{PREFERRED_PORT}")
+            return
+        reason = _reason(error, last_server_error.message)
+        webbrowser.open(write_failure_page(reason, log).as_uri())
         sys.exit(1)
