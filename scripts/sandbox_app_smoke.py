@@ -100,7 +100,7 @@ def _read(path: Path) -> str:
 
 
 def main(zip_path: Path) -> None:
-    with tempfile.TemporaryDirectory() as work_dir:
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as work_dir:
         work = Path(work_dir)
         unpacked, temp = work / "unpacked", work / "temp"
         unpacked.mkdir()
