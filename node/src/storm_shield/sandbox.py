@@ -20,6 +20,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from starlette.types import Receive, Scope, Send
 
+from storm_shield.app_files import APP_ROOT, BUILT_PACKS_DIR, DASHBOARD_DIR, DOWNLOADED_PACKS_DIR
 from storm_shield.cache_pack import CachePack, InvalidCachePack, download_source
 from storm_shield.community_reading import Position
 from storm_shield.main import create_app
@@ -39,7 +40,7 @@ from storm_shield.sandbox_api import (
     SuggestedSite,
     UnknownSensor,
 )
-from storm_shield.settings import Settings
+from storm_shield.settings import LOOPBACK_HOST, Settings
 
 logger = logging.getLogger(__name__)
 
@@ -51,8 +52,7 @@ SITE_TAKEN_WITHIN_M = 50.0
 # it towards the spec's 1 km.
 SANDBOX_RADIO_RANGE_M = 40_000.0
 DOWNLOAD_TIMEOUT_SECONDS = 120
-REPO = Path(__file__).resolve().parents[3]
-BUILT_DASHBOARD = REPO / "dashboard" / "dist" / "index.html"
+BUILT_DASHBOARD = DASHBOARD_DIR / "index.html"
 
 
 class NodeSite(NamedTuple):
@@ -558,10 +558,10 @@ def pack_for(region: str, client: httpx.Client, override: str = "") -> Path:
     """The Region's Cache Pack: the one its build command wrote, else the one fetched from its
     Release on an earlier run, else the Release itself. Says which command to run when none is
     there."""
-    built = REPO / "node" / "build" / region / "cache-pack.zip"
+    built = BUILT_PACKS_DIR / region / "cache-pack.zip"
     if built.is_file():
         return built
-    downloaded = REPO / ".demo" / "pack" / region / "cache-pack.zip"
+    downloaded = DOWNLOADED_PACKS_DIR / region / "cache-pack.zip"
     if downloaded.is_file():
         return downloaded
     build_command = f"scripts/build-cache-pack.sh {region}"
@@ -594,7 +594,7 @@ def build_dashboard_if_missing() -> None:
     if BUILT_DASHBOARD.is_file():
         return
     logger.info("building the dashboard (once)")
-    dashboard = REPO / "dashboard"
+    dashboard = APP_ROOT / "dashboard"
     try:
         for command in (["pnpm", "install", "--frozen-lockfile"], ["pnpm", "build"]):
             subprocess.run(command, cwd=dashboard, check=True, capture_output=True)
@@ -628,21 +628,32 @@ def run() -> None:
     )
     arguments = parser.parse_args()
     try:
-        with httpx.Client(timeout=DOWNLOAD_TIMEOUT_SECONDS, follow_redirects=True) as client:
-            cache_pack_url = Settings().cache_pack_url
-
-            def find_pack(region: str) -> Path:
-                return pack_for(region, client, cache_pack_url)
-
-            pack = arguments.pack or find_pack(arguments.region)
-            build_dashboard_if_missing()
-            with Sandbox(pack, arguments.region, find_pack=find_pack) as sandbox:
-                server = uvicorn.Server(uvicorn.Config(sandbox.hub, port=arguments.port))
-                url = f"http://localhost:{arguments.port}"
-                logger.info("Sandbox dashboard: %s (everything in it is SIMULATED)", url)
-                threading.Thread(
-                    target=_open_browser_when_up, args=(server, url), daemon=True
-                ).start()
-                server.run()
+        serve(arguments.port, arguments.region, arguments.pack)
     except SandboxError as error:
         raise SystemExit(f"storm-shield-sandbox: {error}") from None
+
+
+def sandbox_server_config(app: Any, port: int) -> uvicorn.Config:
+    """Always loopback: the Sandbox is for the one person at this computer, and nothing here or
+    on the command line widens it."""
+    # No log_config: uvicorn's own sends its lines to stderr, which the app has no terminal for;
+    # without it they reach the root logger, and so the app's log file.
+    return uvicorn.Config(app, host=LOOPBACK_HOST, port=port, log_config=None)
+
+
+def serve(port: int, region: str, pack: Path | None = None) -> None:
+    """Start the Sandbox on `region`, open the browser once it answers, and serve until stopped."""
+    with httpx.Client(timeout=DOWNLOAD_TIMEOUT_SECONDS, follow_redirects=True) as client:
+        cache_pack_url = Settings().cache_pack_url
+
+        def find_pack(region: str) -> Path:
+            return pack_for(region, client, cache_pack_url)
+
+        pack = pack or find_pack(region)
+        build_dashboard_if_missing()
+        with Sandbox(pack, region, find_pack=find_pack) as sandbox:
+            server = uvicorn.Server(sandbox_server_config(sandbox.hub, port))
+            url = f"http://{LOOPBACK_HOST}:{port}"
+            logger.info("Sandbox dashboard: %s (everything in it is SIMULATED)", url)
+            threading.Thread(target=_open_browser_when_up, args=(server, url), daemon=True).start()
+            server.run()

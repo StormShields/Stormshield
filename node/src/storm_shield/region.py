@@ -5,8 +5,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
-# Resolved from this file, not the cwd, so the Node starts from any directory.
-REGIONS_DIR = Path(__file__).resolve().parents[3] / "regions"
+from storm_shield.app_files import REGIONS_DIR as REGIONS_DIR  # noqa: PLC0414 (re-exported: tests and scripts read it here)
 
 Hazard = Literal["flash_flood", "storm_surge"]
 

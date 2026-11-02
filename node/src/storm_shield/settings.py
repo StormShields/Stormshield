@@ -4,6 +4,11 @@ from typing import Literal
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from storm_shield.app_files import DASHBOARD_DIR
+
+# The Sandbox listens here and nowhere wider: it is for the one person at this computer.
+LOOPBACK_HOST = "127.0.0.1"
+
 Role = Literal["sensor", "hub"]
 MeshKind = Literal["reticulum", "memory"]
 ReticulumInterface = Literal["auto", "loopback", "tcp"]
@@ -26,8 +31,8 @@ class Settings(BaseSettings):
     # Kilometres down the river from the Lhende-Kyirong confluence (negative above it); blank for a
     # Node that is not on the river, which then cannot start a Community Warning.
     river_km: float | None = None
-    # Resolved from this file, not the cwd, so the Node starts from any directory.
-    dashboard_dir: Path = Path(__file__).resolve().parents[3] / "dashboard" / "dist"
+    # Resolved from the app's files, not the cwd, so the Node starts from any directory.
+    dashboard_dir: Path = DASHBOARD_DIR
     # "memory" is a Node that hears only itself; tests and the dashboard dev server use it.
     mesh: MeshKind = "reticulum"
     # "auto" finds Nodes on the local Wi-Fi (the demo). "loopback" joins Nodes on this one machine,

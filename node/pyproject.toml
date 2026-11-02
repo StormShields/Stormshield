@@ -16,6 +16,7 @@ dev = ["pytest", "ruff", "mypy"]
 [project.scripts]
 storm-shield-node = "storm_shield.main:run"
 storm-shield-sandbox = "storm_shield.sandbox:run"
+storm-shield-sandbox-app = "storm_shield.sandbox_app:main"
 
 [build-system]
 requires = ["hatchling"]
