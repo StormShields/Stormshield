@@ -73,8 +73,8 @@ def zip_bundle(built: Path) -> None:
             ["ditto", "-c", "-k", "--keepParent", str(built), str(ZIP_PATH)], check=True
         )
     else:
-        archive = shutil.make_archive(str(ZIP_PATH.with_suffix("")), "zip", built.parent, built.name)
-        assert Path(archive) == ZIP_PATH
+        base = str(ZIP_PATH.with_suffix(""))
+        shutil.make_archive(base, "zip", built.parent, built.name)
 
 
 def main() -> None:

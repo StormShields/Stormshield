@@ -112,7 +112,8 @@ def main(zip_path: Path) -> None:
         stub = "python -c pass" if WINDOWS else "python3 -c pass"
         # The app's temp folder is ours, so "the folder is gone" is a plain look inside it; and
         # `BROWSER` is how Python's `webbrowser` is told to open something else than a browser.
-        env = {**os.environ, "BROWSER": stub, "TMPDIR": str(temp), "TEMP": str(temp), "TMP": str(temp)}
+        folders = {name: str(temp) for name in ("TMPDIR", "TEMP", "TMP")}
+        env = {**os.environ, "BROWSER": stub, **folders}
         app = subprocess.Popen([str(executable)], env=env, stdout=subprocess.DEVNULL)
         log = temp / LOG_NAME
         try:
