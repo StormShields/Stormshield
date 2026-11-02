@@ -1,5 +1,6 @@
 import { Fragment } from "react";
 
+import { CameraLine } from "./CameraLine";
 import { FloodRiskCard } from "./FloodRiskPanel";
 import { NodeTags } from "./NodeTags";
 import { Panel, type PanelControl } from "./Panel";
@@ -49,6 +50,8 @@ type Props = {
   trends: Record<string, Trend>;
   onSelect: (id: string) => void;
   panel: PanelControl;
+  // True in the Sandbox, whose Hub passes on every Sensor's Camera picture.
+  inSandbox: boolean;
 };
 
 export function ReadingsPanel({
@@ -63,12 +66,22 @@ export function ReadingsPanel({
   trends,
   onSelect,
   panel,
+  inSandbox,
 }: Props) {
   const reducedMotion = usePrefersReducedMotion();
 
   const { pinned, rungs, offRiver } = readingsLadder(nodes, hubId);
   const firstNotCountedId = offRiver.find((node) => !node.registered && !node.isThisNode)?.id;
   const waveAfter = rungBeforeWave(rungs, waveKm);
+
+  // A picture never crosses the Mesh: the Sandbox's Hub has them all, anywhere else this page can
+  // reach only the Camera of the Node it is connected to.
+  const pictureUrlOf = (node: NodeOnMap) =>
+    inSandbox
+      ? `/api/sandbox/sensors/${encodeURIComponent(node.id)}/picture`
+      : node.isThisNode
+        ? "/api/camera/picture"
+        : null;
 
   const card = (
     node: NodeOnMap,
@@ -112,12 +125,20 @@ export function ReadingsPanel({
           .filter((measurement) => !(hero && measurement.kind === "water_level"))
           .map((measurement) => (
             <li key={measurement.kind}>
-              <ReadingSlot
-                value={measurement.value}
-                trend={trends[historyKey(node.id, measurement.kind)]}
-              >
-                {kindLabel(measurement.kind)}: {measurement.shown}
-              </ReadingSlot>
+              {measurement.kind === "camera" ? (
+                <CameraLine
+                  pictureNumber={measurement.value}
+                  shown={measurement.shown}
+                  pictureUrl={pictureUrlOf(node)}
+                />
+              ) : (
+                <ReadingSlot
+                  value={measurement.value}
+                  trend={trends[historyKey(node.id, measurement.kind)]}
+                >
+                  {kindLabel(measurement.kind)}: {measurement.shown}
+                </ReadingSlot>
+              )}
             </li>
           ))}
         {/* On a coast a simulated Sensor whose ground is above the water sends no level, not zero;

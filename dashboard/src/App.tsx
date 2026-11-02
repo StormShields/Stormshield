@@ -265,6 +265,7 @@ export function App() {
       rises={rises}
       trends={trends}
       panel={panel("readings")}
+      inSandbox={sandbox !== null}
     />
   );
   const sandboxPanel = sandbox && (
