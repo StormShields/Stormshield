@@ -20,7 +20,7 @@ ALL_EIGHT_KINDS = [
     ("wind_speed", 14.3, "m/s"),
     ("camera", 0.42, "score"),
 ]
-LEFT_OF_THE_BUDGET = 350
+READING_BYTE_BUDGET = 350
 
 
 def _readings(kinds: list[tuple[str, float, str]]) -> list[Reading]:
@@ -40,7 +40,7 @@ def _reading(node: str, kinds: list[tuple[str, float, str]]) -> CommunityReading
 
 def test_a_reading_with_all_eight_kinds_at_realistic_values_is_under_the_budget() -> None:
     reading = _reading("a1b2c3d4e5f6", ALL_EIGHT_KINDS)
-    assert len(reading.model_dump_json().encode()) < LEFT_OF_THE_BUDGET
+    assert len(reading.model_dump_json().encode()) < READING_BYTE_BUDGET
 
 
 def test_the_in_memory_mesh_refuses_what_one_packet_cannot_carry() -> None:
