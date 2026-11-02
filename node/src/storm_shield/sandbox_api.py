@@ -17,6 +17,8 @@ class SandboxNode(BaseModel):
     hops: int | None
     # Whether this Node has the newest Community Warning the Hub has sent.
     heard_warning: bool
+    # The kinds this Node declares: every kind on offer except those unticked on it.
+    kinds: list[str]
 
 
 class SuggestedSite(BaseModel):
@@ -29,6 +31,8 @@ class SuggestedSite(BaseModel):
 
 class SandboxNodes(BaseModel):
     radio_range_m: float
+    # What the playing Event can supply, then `camera`: the kinds a Sensor can declare now.
+    offered_kinds: list[str]
     nodes: list[SandboxNode]
     suggested_sites: list[SuggestedSite]
 
@@ -59,6 +63,13 @@ class Spot(BaseModel):
     longitude: float = Field(ge=-180, le=180)
 
 
+class SensorChange(Spot):
+    """Where a Sensor goes, and optionally which of the offered kinds it declares; left out, a
+    new Sensor declares everything but `camera` and an edited one keeps what it had."""
+
+    kinds: list[str] | None = None
+
+
 class UnknownSensor(Exception):
     """No Sensor has this id; the Hub is not one, so it cannot be moved or removed."""
 
@@ -74,9 +85,9 @@ class SandboxControls(Protocol):
 
     def set_radio_range(self, radio_range_m: float) -> SandboxNodes: ...
 
-    def add_sensor(self, spot: Spot) -> SandboxNodes: ...
+    def add_sensor(self, change: SensorChange) -> SandboxNodes: ...
 
-    def move_sensor(self, sensor_id: str, spot: Spot) -> SandboxNodes: ...
+    def move_sensor(self, sensor_id: str, change: SensorChange) -> SandboxNodes: ...
 
     def remove_sensor(self, sensor_id: str) -> SandboxNodes: ...
 

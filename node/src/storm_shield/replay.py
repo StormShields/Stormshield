@@ -175,11 +175,12 @@ def _require_increasing(positions: list[float], what: str) -> None:
         raise ValueError(f"{what} must be a non-empty list in strictly increasing order")
 
 
+# The kinds every Event supplies from its water surface and weather.
+FLOOD_KINDS = ("water_level", "rain_rate", "soil_moisture", "air_pressure")
+CAMERA_KIND = "camera"
 # Kinds a track cannot carry: the flood four have their own sources, and the Node makes the
 # camera's Picture itself.
-_KINDS_WITHOUT_A_TRACK = frozenset(
-    {"water_level", "rain_rate", "soil_moisture", "air_pressure", "camera"}
-)
+_KINDS_WITHOUT_A_TRACK = frozenset({*FLOOD_KINDS, CAMERA_KIND})
 
 
 class MeasurementTrack(BaseModel):

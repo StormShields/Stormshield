@@ -15,6 +15,8 @@ export type SandboxNode = {
   hops: number | null;
   // Whether this Node has the newest Community Warning the Hub sent.
   heard_warning: boolean;
+  // The kinds this Node declares: a subset of the kinds on offer.
+  kinds: string[];
 };
 
 // A spot the Region's author suggests for a Sensor, shown while no Sensor sits there.
@@ -22,6 +24,8 @@ export type SuggestedSite = { label: string; why: string; position: [number, num
 
 export type SandboxNodes = {
   radio_range_m: number;
+  // What the playing Event can supply, then "camera": the kinds a Sensor can declare now.
+  offered_kinds: string[];
   nodes: SandboxNode[];
   suggested_sites: SuggestedSite[];
 };
@@ -42,6 +46,8 @@ export type SandboxFeed = {
   addSensor: (lat: number, lon: number) => Promise<void>;
   moveSensor: (id: string, lat: number, lon: number) => Promise<void>;
   removeSensor: (id: string) => Promise<void>;
+  // Declares `kinds` on a Sensor that stays where it is.
+  setSensorKinds: (id: string, position: [number, number], kinds: string[]) => Promise<void>;
   switchRegion: (name: string) => Promise<void>;
 };
 
@@ -131,6 +137,15 @@ export function useSandboxNodes(inSandbox: boolean, onRegionSwitched: () => void
       ),
     [change],
   );
+  const setSensorKinds = useCallback(
+    (id: string, [latitude, longitude]: [number, number], kinds: string[]) =>
+      change(
+        "change the Sensor's kinds",
+        `/api/sandbox/sensors/${encodeURIComponent(id)}`,
+        sendJson("PUT", { latitude, longitude, kinds }),
+      ),
+    [change],
+  );
   const removeSensor = useCallback(
     (id: string) =>
       change(
@@ -168,5 +183,6 @@ export function useSandboxNodes(inSandbox: boolean, onRegionSwitched: () => void
     addSensor,
     moveSensor,
     removeSensor,
+    setSensorKinds,
   };
 }
