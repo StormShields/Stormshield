@@ -53,7 +53,8 @@ SITE_TAKEN_WITHIN_M = 50.0
 SANDBOX_RADIO_RANGE_M = 40_000.0
 DOWNLOAD_TIMEOUT_SECONDS = 120
 BUILT_DASHBOARD = DASHBOARD_DIR / "index.html"
-# Browsers poll `/api/state` even from a background tab, so ten minutes of silence means none is open.
+# Browsers poll `/api/state` even from a background tab, so ten minutes of silence means no tab
+# is open.
 APP_IDLE_LIMIT = timedelta(minutes=10)
 APP_WATCH_SECONDS = 1.0
 

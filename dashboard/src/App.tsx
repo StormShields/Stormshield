@@ -277,11 +277,7 @@ export function App() {
       onSwitchRegion={switchRegion}
       onStop={
         state?.sandbox?.can_stop
-          ? () =>
-              void stopSandbox().then(
-                () => setSandboxStopped(true),
-                () => {},
-              )
+          ? () => void stopSandbox().then((stopped) => setSandboxStopped(stopped))
           : null
       }
       problem={problem}

@@ -797,6 +797,21 @@ def test_serving_the_app_ends_on_stop_and_removes_its_folder(
     assert list(scratch.iterdir()) == []
 
 
+def test_serving_the_app_ends_itself_once_idle_and_removes_its_folder(
+    pack: Path, scratch: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(sandbox_module, "_open_browser_when_up", lambda server, url: None)
+    monkeypatch.setattr(sandbox_module, "APP_IDLE_LIMIT", timedelta(seconds=2))
+    monkeypatch.setattr(sandbox_module, "APP_WATCH_SECONDS", 0.2)
+    served = threading.Thread(
+        target=sandbox_module.serve, args=(free_port(), "fort-myers", pack), kwargs={"app": True}
+    )
+    served.start()
+    served.join(timeout=60)
+    assert not served.is_alive()
+    assert list(scratch.iterdir()) == []
+
+
 def _wait_until_up(port: int) -> None:
     deadline = time.monotonic() + 30
     while time.monotonic() < deadline:
