@@ -1,0 +1,82 @@
+"""The Sandbox as a double-clickable app: no arguments, and any problem ends up on a page.
+
+Someone who opens it has no terminal, so it picks the port itself, opens the dashboard of a
+Sandbox that is already running instead of starting a second one, logs to a file in the temp
+folder and, when it cannot start, opens a page that says why.
+"""
+
+import html
+import logging
+import socket
+import sys
+import tempfile
+import traceback
+import webbrowser
+from pathlib import Path
+
+import httpx
+
+from storm_shield.sandbox import LOOPBACK_HOST, serve
+from storm_shield.settings import Settings
+
+logger = logging.getLogger(__name__)
+
+PREFERRED_PORT = 8000
+LOG_FILE_NAME = "storm-shield-sandbox.log"
+FAILURE_PAGE_NAME = "storm-shield-sandbox-failed.html"
+
+
+def log_file() -> Path:
+    return Path(tempfile.gettempdir()) / LOG_FILE_NAME
+
+
+def sandbox_is_running_on(port: int) -> bool:
+    try:
+        state = httpx.get(f"http://{LOOPBACK_HOST}:{port}/api/state", timeout=2).json()
+        return bool(state["sandbox"])
+    except (httpx.HTTPError, ValueError, KeyError, TypeError):
+        return False
+
+
+def _bindable(port: int) -> bool:
+    with socket.socket() as probe:
+        try:
+            probe.bind((LOOPBACK_HOST, port))
+        except OSError:
+            return False
+    return True
+
+
+def free_port() -> int:
+    with socket.socket() as probe:
+        probe.bind((LOOPBACK_HOST, 0))
+        return int(probe.getsockname()[1])
+
+
+def write_failure_page(error: BaseException, log: Path) -> Path:
+    page = Path(tempfile.gettempdir()) / FAILURE_PAGE_NAME
+    page.write_text(
+        "<!doctype html><meta charset=utf-8><title>Storm Shield Sandbox could not start</title>"
+        "<h1>Storm Shield Sandbox could not start</h1>"
+        f"<p>{html.escape(str(error) or type(error).__name__)}</p>"
+        f"<p>The full log is at <code>{html.escape(str(log))}</code></p>",
+        encoding="utf-8",
+    )
+    return page
+
+
+def main() -> None:
+    log = log_file()
+    logging.basicConfig(level=logging.INFO, filename=log, force=True)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    try:
+        if sandbox_is_running_on(PREFERRED_PORT):
+            webbrowser.open(f"http://{LOOPBACK_HOST}:{PREFERRED_PORT}")
+            return
+        port = PREFERRED_PORT if _bindable(PREFERRED_PORT) else free_port()
+        serve(port, Settings().region)
+    # Whatever went wrong, the person double-clicking has no terminal: it all has to reach the page.
+    except Exception as error:  # noqa: BLE001
+        logger.error("the Sandbox could not start\n%s", traceback.format_exc())
+        webbrowser.open(write_failure_page(error, log).as_uri())
+        sys.exit(1)
