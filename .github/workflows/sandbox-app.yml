@@ -1,0 +1,94 @@
+# Builds the Sandbox app for macOS (Apple Silicon) and Windows (x64) and smoke-checks each
+# download. Runs on any pull request touching the packaging; by manual dispatch with a version
+# number it also publishes the Release `sandbox-app-v<N>`. Kept apart from ci.yml because
+# `scripts/check.sh` stays quick and platform-free. Spec: docs/specs/general-sensors.md, decision 7.
+name: Sandbox app
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/sandbox-app.yml
+      - scripts/sandbox_app_*.py
+      - scripts/sandbox-app-release-notes.md
+      - node/src/storm_shield/app_files.py
+      - node/src/storm_shield/cache_pack.py
+      - node/src/storm_shield/sandbox_app.py
+      - node/pyproject.toml
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release number N: publishes sandbox-app-vN (not marked latest)"
+        required: true
+
+concurrency:
+  group: sandbox-app-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and smoke check (${{ matrix.platform }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-arm64
+            runner: macos-14
+          - platform: windows-x64
+            runner: windows-2022
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: dashboard/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile && pnpm build
+        working-directory: dashboard
+      - run: uv run --project node --with "pyinstaller>=6,<7" python scripts/sandbox_app_build.py
+      - run: uv run --project node python scripts/sandbox_app_smoke.py dist-sandbox-app/Storm-Shield-Sandbox-${{ matrix.platform }}.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sandbox-app-${{ matrix.platform }}
+          path: dist-sandbox-app/Storm-Shield-Sandbox-${{ matrix.platform }}.zip
+          if-no-files-found: error
+
+  publish:
+    name: Publish the Release
+    if: github.event_name == 'workflow_dispatch'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: assets
+          merge-multiple: true
+      - name: Create the Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          case "$VERSION" in
+            ''|*[!0-9]*) echo "version must be a number, got '$VERSION'"; exit 1 ;;
+          esac
+          gh release create "sandbox-app-v$VERSION" assets/*.zip \
+            --title "Storm Shield Sandbox app v$VERSION" \
+            --notes-file scripts/sandbox-app-release-notes.md \
+            --latest=false --target "$GITHUB_SHA"
