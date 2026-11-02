@@ -1741,6 +1741,40 @@ section p.flood-prone-caption {
   overflow-wrap: anywhere;
 }
 
+.camera-toggle {
+  min-height: 2.5rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.camera-picture {
+  margin: 0.3rem 0 0.2rem;
+}
+
+.camera-picture img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: 0.25rem;
+}
+
+.camera-picture figcaption {
+  margin-top: 0.3rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.camera-picture .tag {
+  margin-left: 0;
+  margin-right: 0.3rem;
+}
+
 .slot-value.tick {
   animation: slot-flash 600ms ease-out 1;
 }
