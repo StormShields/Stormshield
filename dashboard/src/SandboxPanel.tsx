@@ -1,6 +1,7 @@
 import { distanceInDisplayUnit } from "./displayUnits";
 import { Panel, type PanelControl } from "./Panel";
 import { useRegion } from "./RegionContext";
+import { kindLabel } from "./ReadingsPanel";
 import { ReplayControls } from "./ReplayControls";
 import type { EventClockFeed } from "./useEventClock";
 import type { SandboxNode, SandboxNodes, SandboxRegions } from "./useSandboxNodes";
@@ -19,6 +20,7 @@ type Props = {
   placing: boolean;
   onTogglePlacing: () => void;
   onRemoveSensor: (id: string) => Promise<void>;
+  onSetSensorKinds: (id: string, position: [number, number], kinds: string[]) => Promise<void>;
   // Whether the Hub has sent any Community Warning yet; until it has, nobody has heard one.
   warningSent: boolean;
   eventClock: EventClockFeed;
@@ -45,6 +47,7 @@ export function SandboxPanel({
   placing,
   onTogglePlacing,
   onRemoveSensor,
+  onSetSensorKinds,
   warningSent,
   eventClock,
   panel,
@@ -107,6 +110,29 @@ export function SandboxPanel({
               >
                 Remove
               </button>
+            )}
+            {node.role === "sensor" && (
+              <fieldset className="sandbox-kinds">
+                <legend>Kinds {node.name} measures</legend>
+                {sandbox.offered_kinds.map((kind) => (
+                  <label key={kind}>
+                    <input
+                      type="checkbox"
+                      checked={node.kinds.includes(kind)}
+                      onChange={(event) =>
+                        void onSetSensorKinds(
+                          node.id,
+                          node.position,
+                          sandbox.offered_kinds.filter((offered) =>
+                            offered === kind ? event.target.checked : node.kinds.includes(offered),
+                          ),
+                        )
+                      }
+                    />
+                    {kindLabel(kind)}
+                  </label>
+                ))}
+              </fieldset>
             )}
           </li>
         ))}

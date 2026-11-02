@@ -61,7 +61,15 @@ from storm_shield.region import (
     load_region,
     region_path,
 )
-from storm_shield.replay import Event, EventClock, ReplayClockMessage, SensorSpot, load_events
+from storm_shield.replay import (
+    CAMERA_KIND,
+    FLOOD_KINDS,
+    Event,
+    EventClock,
+    ReplayClockMessage,
+    SensorSpot,
+    load_events,
+)
 from storm_shield.reticulum_mesh import ReticulumMesh
 from storm_shield.sandbox_api import (
     RadioRange,
@@ -70,7 +78,7 @@ from storm_shield.sandbox_api import (
     SandboxNodes,
     SandboxRefused,
     SandboxRegions,
-    Spot,
+    SensorChange,
     UnknownSensor,
 )
 from storm_shield.settings import Role, Settings
@@ -253,7 +261,10 @@ def create_app(
         """The Event the Event clock names; the first one while it names none this Node holds."""
         return events.get(event_clock.current(clock()).event, first_event)
 
-    measured_kinds = {kind.strip() for kind in settings.measures.split(",") if kind.strip()}
+    def measured_kinds() -> set[str]:
+        """Asked at each share: the Sandbox changes what a Sensor declares while it runs."""
+        return {kind.strip() for kind in settings.measures.split(",") if kind.strip()}
+
     # Read once per spot and pack, not at every share; a new pack or a Sandbox move reads again.
     ground_heights: dict[Position, float | None] = {}
     ground_heights_pack: list[object] = [None]
@@ -295,7 +306,12 @@ def create_app(
             Position(settings.latitude, settings.longitude), settings.river_km, ground_m()
         )
         readings = event.readings_at(spot, event_t, clock())
-        return [r for r in readings if r.kind in measured_kinds] or None
+        declared = measured_kinds()
+        return [r for r in readings if r.kind in declared] or None
+
+    def offered_kinds() -> list[str]:
+        """The kinds the playing Event can supply, then `camera`, which the Node makes itself."""
+        return [*FLOOD_KINDS, *(track.kind for track in clocked_event().tracks), CAMERA_KIND]
 
     def keep_reading(sender: str, reading: CommunityReading) -> None:
         store.record(sender, reading, clock())
@@ -728,6 +744,7 @@ def create_app(
     app = FastAPI(title="Storm Shield Node", lifespan=lifespan)
     # So the Sandbox, which moves a Node, can have it read from its new spot at once.
     app.state.share_reading = publisher.share
+    app.state.offered_kinds = offered_kinds
 
     @app.get("/api/state")
     def node_state() -> NodeState:
@@ -990,16 +1007,16 @@ def create_app(
             return sandbox.set_radio_range(change.radio_range_m)
 
         @app.post("/api/sandbox/sensors")
-        def add_sandbox_sensor(spot: Spot) -> SandboxNodes:
+        def add_sandbox_sensor(change: SensorChange) -> SandboxNodes:
             try:
-                return sandbox.add_sensor(spot)
+                return sandbox.add_sensor(change)
             except SandboxRefused as refusal:
                 raise HTTPException(status_code=409, detail=str(refusal)) from None
 
         @app.put("/api/sandbox/sensors/{sensor_id}")
-        def move_sandbox_sensor(sensor_id: str, spot: Spot) -> SandboxNodes:
+        def move_sandbox_sensor(sensor_id: str, change: SensorChange) -> SandboxNodes:
             try:
-                return sandbox.move_sensor(sensor_id, spot)
+                return sandbox.move_sensor(sensor_id, change)
             except UnknownSensor:
                 raise HTTPException(status_code=404, detail=f"no Sensor {sensor_id!r}") from None
             except SandboxRefused as refusal:

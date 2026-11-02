@@ -97,6 +97,7 @@ export function App() {
     addSensor,
     moveSensor,
     removeSensor,
+    setSensorKinds,
     switchRegion,
   } = useSandboxNodes(state?.sandbox != null, refresh);
   const [sandboxPanelOpen, setSandboxPanelOpen] = useState(true);
@@ -276,6 +277,7 @@ export function App() {
       placing={placingSensor}
       onTogglePlacing={() => setPlacingSensor((placing) => !placing)}
       onRemoveSensor={removeSensor}
+      onSetSensorKinds={setSensorKinds}
       warningSent={communityWarnings.length > 0}
       eventClock={eventClock}
       panel={

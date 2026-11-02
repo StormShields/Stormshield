@@ -25,13 +25,17 @@ function node(
     links: [],
     hops: 1,
     heard_warning: false,
+    kinds: ["water_level", "rain_rate"],
     ...overrides,
   };
 }
 
+const OFFERED = ["water_level", "rain_rate", "wind_speed", "camera"];
+
 // Everyone in range of the Hub.
 const WIDE: SandboxNodes = {
   radio_range_m: WIDE_RANGE_M,
+  offered_kinds: OFFERED,
   suggested_sites: [],
   nodes: [
     node("hub", HUB_AT, { role: "hub", hops: 0, links: ["near", "far"] }),
@@ -43,6 +47,7 @@ const WIDE: SandboxNodes = {
 // The range cut to the Hub's one near neighbour: "far" has no path left.
 const NARROW: SandboxNodes = {
   radio_range_m: NARROW_RANGE_M,
+  offered_kinds: OFFERED,
   suggested_sites: [],
   nodes: [
     node("hub", HUB_AT, { role: "hub", hops: 0, links: ["near"] }),
@@ -167,8 +172,8 @@ test("the Panel lists each Node's hops to the Hub, and a Sensor with none is mar
   const rows = await within(panel).findAllByRole("listitem");
   expect(rows.map((row) => row.textContent)).toEqual([
     "hubHubno warning yet",
-    "near1 hop to Hubno warning yetRemove",
-    "farno path to Hubno warning yetRemove",
+    "near1 hop to Hubno warning yetRemoveKinds near measuresWater levelRain rateWind speedCamera",
+    "farno path to Hubno warning yetRemoveKinds far measuresWater levelRain rateWind speedCamera",
   ]);
   // The list says it, and so does the marker pinned to the Sensor on the map.
   expect(await screen.findAllByText("no path to Hub")).toHaveLength(2);
@@ -447,4 +452,77 @@ test("removing a Sensor from a suggested site brings the faint marker back", asy
   expect(
     await screen.findByRole("button", { name: "Add a Sensor at Coconut Point" }),
   ).toBeInTheDocument();
+});
+
+test("each Sensor's row ticks the kinds it declares among the ones on offer, and the Hub's row has none", async () => {
+  stubTheHub({ sandbox: true });
+  const panel = await sandboxPanel();
+  const near = (await within(panel).findByRole("group", {
+    name: "Kinds near measures",
+  })) as HTMLElement;
+
+  expect(
+    within(near)
+      .getAllByRole("checkbox")
+      .map((box) => [box.parentElement?.textContent, (box as HTMLInputElement).checked]),
+  ).toEqual([
+    ["Water level", true],
+    ["Rain rate", true],
+    ["Wind speed", false],
+    ["Camera", false],
+  ]);
+  expect(
+    within(panel).queryByRole("group", { name: "Kinds hub measures" }),
+  ).not.toBeInTheDocument();
+});
+
+test("unticking a kind asks the Hub to declare the rest from the Sensor's own spot and shows its answer", async () => {
+  const withoutRain: SandboxNodes = {
+    ...WIDE,
+    nodes: WIDE.nodes.map((each) =>
+      each.id === "near" ? { ...each, kinds: ["water_level"] } : each,
+    ),
+  };
+  stubTheHub({ sandbox: true, afterChange: withoutRain });
+  const panel = await sandboxPanel();
+  const near = await within(panel).findByRole("group", { name: "Kinds near measures" });
+
+  fireEvent.click(within(near).getByRole("checkbox", { name: "Rain rate" }));
+
+  await waitFor(() =>
+    expect(sent).toEqual([
+      {
+        method: "PUT",
+        path: "/api/sandbox/sensors/near",
+        body: { latitude: NEAR_AT[0], longitude: NEAR_AT[1], kinds: ["water_level"] },
+      },
+    ]),
+  );
+  await waitFor(() =>
+    expect(within(near).getByRole("checkbox", { name: "Rain rate" })).not.toBeChecked(),
+  );
+});
+
+test("ticking a kind adds it in the order the Hub offers", async () => {
+  stubTheHub({ sandbox: true });
+  const panel = await sandboxPanel();
+  const near = await within(panel).findByRole("group", { name: "Kinds near measures" });
+
+  fireEvent.click(within(near).getByRole("checkbox", { name: "Camera" }));
+
+  await waitFor(() =>
+    expect(sent[0].body).toMatchObject({ kinds: ["water_level", "rain_rate", "camera"] }),
+  );
+});
+
+test("a refused kind shows the Hub's sentence", async () => {
+  stubTheHub({ sandbox: true, afterChange: 409 });
+  const panel = await sandboxPanel();
+  const near = await within(panel).findByRole("group", { name: "Kinds near measures" });
+
+  fireEvent.click(within(near).getByRole("checkbox", { name: "Wind speed" }));
+
+  expect(await within(panel).findByRole("alert")).toHaveTextContent(
+    "Could not change the Sensor's kinds: the Hub said no",
+  );
 });
