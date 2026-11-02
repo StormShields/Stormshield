@@ -40,8 +40,7 @@ from storm_shield.sandbox_api import (
     SuggestedSite,
     UnknownSensor,
 )
-from storm_shield.sandbox_app import LOOPBACK_HOST
-from storm_shield.settings import Settings
+from storm_shield.settings import LOOPBACK_HOST, Settings
 
 logger = logging.getLogger(__name__)
 
@@ -639,7 +638,7 @@ def sandbox_server_config(app: Any, port: int) -> uvicorn.Config:
     on the command line widens it."""
     # No log_config: uvicorn's own sends its lines to stderr, which the app has no terminal for;
     # without it they reach the root logger, and so the app's log file.
-    return uvicorn.Config(app, host=LOOPBACK_HOST, port=port, log_config=None, access_log=False)
+    return uvicorn.Config(app, host=LOOPBACK_HOST, port=port, log_config=None)
 
 
 def serve(port: int, region: str, pack: Path | None = None) -> None:

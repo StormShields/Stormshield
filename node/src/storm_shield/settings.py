@@ -6,6 +6,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from storm_shield.app_files import DASHBOARD_DIR
 
+# The Sandbox listens here and nowhere wider: it is for the one person at this computer.
+LOOPBACK_HOST = "127.0.0.1"
+
 Role = Literal["sensor", "hub"]
 MeshKind = Literal["reticulum", "memory"]
 ReticulumInterface = Literal["auto", "loopback", "tcp"]

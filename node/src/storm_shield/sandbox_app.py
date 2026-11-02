@@ -16,11 +16,10 @@ from pathlib import Path
 
 import httpx
 
-from storm_shield.settings import Settings
+from storm_shield.settings import LOOPBACK_HOST, Settings
 
 logger = logging.getLogger(__name__)
 
-LOOPBACK_HOST = "127.0.0.1"
 PREFERRED_PORT = 8000
 LOG_FILE_NAME = "storm-shield-sandbox.log"
 FAILURE_PAGE_NAME = "storm-shield-sandbox-failed.html"

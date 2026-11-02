@@ -13,7 +13,7 @@ import pytest
 from storm_shield import app_files, sandbox_app
 from storm_shield import sandbox as sandbox_module
 from storm_shield.sandbox import sandbox_server_config
-from storm_shield.sandbox_app import LOOPBACK_HOST
+from storm_shield.settings import LOOPBACK_HOST
 
 _log = logging.getLogger("storm_shield.sandbox_app")
 
@@ -177,6 +177,7 @@ def test_a_region_that_cannot_be_read_opens_the_failure_page_through_the_real_en
     page = Path(opened_url.read_text().removeprefix("file://")).read_text()
     assert "nowhere" in page
     assert str(tmp_path / sandbox_app.LOG_FILE_NAME) in page
+    assert "nowhere" in (tmp_path / sandbox_app.LOG_FILE_NAME).read_text()
 
 
 def test_the_app_logs_to_a_file_in_the_temp_folder(
