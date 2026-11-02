@@ -25,6 +25,7 @@ from storm_shield.community_reading import Position
 from storm_shield.main import create_app
 from storm_shield.mesh import InMemoryNetwork, metres_between
 from storm_shield.region import Region, load_region, region_names, region_path
+from storm_shield.replay import CAMERA_KIND, FLOOD_KINDS, load_events
 from storm_shield.river_line import river_km_at
 from storm_shield.sandbox_api import (
     SandboxControls,
@@ -33,6 +34,7 @@ from storm_shield.sandbox_api import (
     SandboxRefused,
     SandboxRegion,
     SandboxRegions,
+    SensorChange,
     Spot,
     SuggestedSite,
     UnknownSensor,
@@ -144,6 +146,10 @@ class SimulatedNodes:
         self.network.move(name, Position(spot.latitude, spot.longitude))
         cast(FastAPI, self._clients[name].app).state.share_reading()
 
+    def declare(self, name: str, kinds: list[str]) -> None:
+        """Have a Node measure only `kinds` from its next share on."""
+        self._settings[name].measures = ",".join(kinds)
+
     def stop(self, name: str) -> None:
         """Take a Node off the Mesh as a power cut would; starting it again keeps its folder."""
         client = self._clients.pop(name)
@@ -237,7 +243,16 @@ class Sandbox:
             )
             # Running starts a Sensor's loops, so it keeps publishing. All of them join before any
             # signs up: a Sensor out of the Hub's own range needs its neighbours to relay.
-            sensors = {site.name: _start_sensor(nodes, site, pack_bytes) for site in sensor_sites}
+            # The first Sensor is the Camera; the others have nothing unticked but `camera`.
+            sensors = {
+                site.name: _start_sensor(
+                    nodes,
+                    site,
+                    pack_bytes,
+                    _kinds_a_region_can_offer(region, with_camera=number == 0),
+                )
+                for number, site in enumerate(sensor_sites)
+            }
             for name, sensor in sensors.items():
                 # An in-memory Node's id is its name.
                 _register(sensor, hub_client, name)
@@ -316,6 +331,12 @@ class _Controls(SandboxControls):
         self._river = river
         self._region = region
         self._sensor_sites = load_region(region_path(region)).sensor_sites
+        # What each Sensor had unticked, kept across Events: an Event that offers a kind again
+        # finds it still unticked. The first Sensor is the Camera.
+        self._unticked: dict[str, set[str]] = {
+            f"s{number}": set() if number == 0 else {CAMERA_KIND}
+            for number in range(sensors_placed)
+        }
         self._switch_region = switch_region
         # The API runs on a threadpool: a Sensor being added is half on the Mesh until it is done.
         self._lock = lock
@@ -333,8 +354,10 @@ class _Controls(SandboxControls):
             links = self._nodes.network.links(HUB)
             states = {name: self._nodes[name].get("/api/state").json() for name in links}
             newest_warning = max((w["id"] for w in states[HUB]["community_warnings"]), default=None)
+            offered = self._offered()
             return SandboxNodes(
                 radio_range_m=radio_range_m,
+                offered_kinds=offered,
                 nodes=[
                     SandboxNode(
                         id=name,
@@ -345,6 +368,7 @@ class _Controls(SandboxControls):
                         hops=reach.hops_from_hub,
                         heard_warning=newest_warning is not None
                         and newest_warning in {w["id"] for w in states[name]["community_warnings"]},
+                        kinds=self._declared(name, offered),
                     )
                     for name, reach in links.items()
                 ],
@@ -364,11 +388,18 @@ class _Controls(SandboxControls):
             self._register_those_in_reach()
             return self.nodes()
 
-    def add_sensor(self, spot: Spot) -> SandboxNodes:
+    def add_sensor(self, change: SensorChange) -> SandboxNodes:
         with self._lock:
+            offered = self._offered()
+            unticked = (
+                {CAMERA_KIND}
+                if change.kinds is None
+                else self._unticked_by(change.kinds, offered, set())
+            )
             name = f"s{next(self._numbers)}"
-            site = NodeSite(name, spot.latitude, spot.longitude, self._river_km(spot))
-            _start_sensor(self._nodes, site, self._pack)
+            site = NodeSite(name, change.latitude, change.longitude, self._river_km(change))
+            _start_sensor(self._nodes, site, self._pack, self._kinds_without(unticked))
+            self._unticked[name] = unticked
             self._unregistered.add(name)
             try:
                 self._register_those_in_reach()
@@ -376,14 +407,25 @@ class _Controls(SandboxControls):
                 # A Sensor the Hub will not take would sit there never counting.
                 self._nodes.stop(name)
                 self._unregistered.discard(name)
+                del self._unticked[name]
                 raise
             return self.nodes()
 
-    def move_sensor(self, sensor_id: str, spot: Spot) -> SandboxNodes:
+    def move_sensor(self, sensor_id: str, change: SensorChange) -> SandboxNodes:
         with self._lock:
             self._require_sensor(sensor_id)
-            self._nodes.move(sensor_id, spot, self._river_km(spot))
-            self._register_those_in_reach()
+            before = self._unticked[sensor_id]
+            if change.kinds is not None:
+                self._unticked[sensor_id] = self._unticked_by(change.kinds, self._offered(), before)
+                self._nodes.declare(sensor_id, self._kinds_without(self._unticked[sensor_id]))
+            try:
+                self._nodes.move(sensor_id, change, self._river_km(change))
+                self._register_those_in_reach()
+            except SandboxRefused:
+                # A refused edit changes nothing, kinds included.
+                self._unticked[sensor_id] = before
+                self._nodes.declare(sensor_id, self._kinds_without(before))
+                raise
             return self.nodes()
 
     def remove_sensor(self, sensor_id: str) -> SandboxNodes:
@@ -391,6 +433,7 @@ class _Controls(SandboxControls):
             self._require_sensor(sensor_id)
             self._nodes.stop(sensor_id)
             self._unregistered.discard(sensor_id)
+            del self._unticked[sensor_id]
             return self.nodes()
 
     def regions(self) -> SandboxRegions:
@@ -408,6 +451,30 @@ class _Controls(SandboxControls):
         # The Hub this runs on is closed by the switch, so the answer comes from the new one.
         self._switch_region(region)
         return SandboxRegions(current=region, regions=self.regions().regions)
+
+    def _offered(self) -> list[str]:
+        offered: list[str] = cast(FastAPI, self._nodes[HUB].app).state.offered_kinds()
+        return offered
+
+    def _declared(self, name: str, offered: list[str]) -> list[str]:
+        return [kind for kind in offered if kind not in self._unticked.get(name, set())]
+
+    def _kinds_without(self, unticked: set[str]) -> list[str]:
+        """Everything this Region's Events can offer but `unticked`: a Sensor holds this list and
+        the playing Event decides which of them it can send, so an Event switch needs no edit."""
+        return [kind for kind in _kinds_a_region_can_offer(self._region) if kind not in unticked]
+
+    def _unticked_by(self, kinds: list[str], offered: list[str], before: set[str]) -> set[str]:
+        """What a Sensor has unticked once it declares `kinds`. A kind the playing Event does not
+        offer keeps whatever it was before, since the list could not have shown it."""
+        for kind in kinds:
+            if kind not in offered:
+                raise SandboxRefused(
+                    f"{kind} is not on offer: the playing Event offers {', '.join(offered)}"
+                )
+        return {kind for kind in offered if kind not in kinds} | {
+            kind for kind in before if kind not in offered
+        }
 
     def _require_sensor(self, sensor_id: str) -> None:
         if sensor_id == HUB or sensor_id not in self._nodes.network.links(HUB):
@@ -435,11 +502,16 @@ class _Controls(SandboxControls):
             self._unregistered.discard(name)
 
 
-# Every kind an Event can offer, so a made-up Event's tracks reach the Hub; a kind the played Event
-# lacks is never sent.
-SANDBOX_MEASURES = (
-    "water_level,rain_rate,soil_moisture,air_pressure,air_temperature,humidity,wind_speed"
-)
+def _kinds_a_region_can_offer(region: str, *, with_camera: bool = True) -> list[str]:
+    """The flood kinds and every track of the Region's Events, then `camera`. A Sensor declares a
+    list like this one, so a made-up Event's tracks reach the Hub; a kind the played Event lacks
+    is never sent."""
+    tracks = dict.fromkeys(
+        track.kind
+        for event in load_events(load_region(region_path(region))).values()
+        for track in event.tracks
+    )
+    return [*FLOOD_KINDS, *tracks, *([CAMERA_KIND] if with_camera else [])]
 
 
 def _settings(nodes: SimulatedNodes, site: NodeSite, **overrides: Any) -> Settings:
@@ -453,10 +525,12 @@ def _settings(nodes: SimulatedNodes, site: NodeSite, **overrides: Any) -> Settin
     )
 
 
-def _start_sensor(nodes: SimulatedNodes, site: NodeSite, pack: bytes) -> TestClient:
+def _start_sensor(
+    nodes: SimulatedNodes, site: NodeSite, pack: bytes, kinds: list[str]
+) -> TestClient:
     """A running Sensor that already holds the Cache Pack: a coast Sensor reads its ground height
     from the pack's terrain, and would stay dry until it had downloaded one."""
-    settings = _settings(nodes, site, measures=SANDBOX_MEASURES)
+    settings = _settings(nodes, site, measures=",".join(kinds))
     CachePack(settings.cache_pack_dir).install(pack)
     return nodes.start(settings, running=True)
 

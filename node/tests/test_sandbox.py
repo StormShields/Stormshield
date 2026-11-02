@@ -493,3 +493,152 @@ def test_a_sensor_added_on_a_suggested_site_takes_the_suggestion_away(
         suggested = _suggested(sandbox)
 
     assert suggested == []
+
+
+FLOOD_KINDS = ["water_level", "rain_rate", "soil_moisture", "air_pressure"]
+MADE_UP_KINDS = ["air_temperature", "humidity", "wind_speed"]
+
+
+def _offered(sandbox: Sandbox) -> list[str]:
+    answer: list[str] = TestClient(sandbox.hub).get("/api/sandbox/nodes").json()["offered_kinds"]
+    return answer
+
+
+def _start_made_up_event(sandbox: Sandbox) -> None:
+    response = TestClient(sandbox.hub).post(
+        "/api/replay/start", json={"event": "made-up-storm-surge"}
+    )
+    assert response.status_code == 200
+
+
+def test_the_node_list_gives_the_kinds_on_offer_and_the_kinds_each_sensor_declares(
+    pack: Path, scratch: Path
+) -> None:
+    with Sandbox(pack) as sandbox:
+        offered = _offered(sandbox)
+        nodes = _nodes(sandbox)
+
+    assert offered == [*FLOOD_KINDS, "camera"]
+    assert nodes["s0"]["kinds"] == offered
+    assert nodes["s1"]["kinds"] == FLOOD_KINDS
+
+
+def test_an_event_with_tracks_offers_them_between_the_flood_kinds_and_camera(
+    pack: Path, scratch: Path
+) -> None:
+    with Sandbox(pack) as sandbox:
+        _start_made_up_event(sandbox)
+        offered = _offered(sandbox)
+        nodes = _nodes(sandbox)
+
+    assert offered == [*FLOOD_KINDS, *MADE_UP_KINDS, "camera"]
+    assert nodes["s1"]["kinds"] == [*FLOOD_KINDS, *MADE_UP_KINDS]
+
+
+def test_a_new_sensor_declares_everything_on_offer_except_camera(pack: Path, scratch: Path) -> None:
+    with Sandbox(pack) as sandbox:
+        added = {
+            node["id"]: node for node in _sensors(sandbox, "POST", "", **BY_THE_BAY).json()["nodes"]
+        }[FIRST_ADDED]
+
+    assert added["kinds"] == FLOOD_KINDS
+
+
+def test_a_sensor_added_with_a_kinds_list_declares_only_those(pack: Path, scratch: Path) -> None:
+    with Sandbox(pack) as sandbox:
+        response = _sensors(sandbox, "POST", "", **BY_THE_BAY, kinds=["water_level", "camera"])
+        heard = _heard_by_hub(sandbox)
+
+    added = {node["id"]: node for node in response.json()["nodes"]}[FIRST_ADDED]
+    assert added["kinds"] == ["water_level", "camera"]
+    assert set(heard[FIRST_ADDED]["measurements"]) == {"water_level"}
+
+
+def test_a_kind_not_on_offer_is_refused_with_a_sentence_and_adds_no_sensor(
+    pack: Path, scratch: Path
+) -> None:
+    with Sandbox(pack) as sandbox:
+        response = _sensors(sandbox, "POST", "", **BY_THE_BAY, kinds=["wind_speed"])
+        nodes = _nodes(sandbox)
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == (
+        "wind_speed is not on offer: the playing Event offers "
+        "water_level, rain_rate, soil_moisture, air_pressure, camera"
+    )
+    assert FIRST_ADDED not in nodes
+
+
+def test_unticking_a_kind_stops_it_in_the_next_reading_and_the_state(
+    pack: Path, scratch: Path
+) -> None:
+    where = {"latitude": SENSOR_SITES[1].latitude, "longitude": SENSOR_SITES[1].longitude}
+    with Sandbox(pack) as sandbox:
+        assert "rain_rate" in _heard_by_hub(sandbox)["s1"]["measurements"]
+        response = _sensors(sandbox, "PUT", "/s1", **where, kinds=["water_level"])
+        heard = _heard_by_hub(sandbox)
+
+    assert response.status_code == 200
+    assert {node["id"]: node for node in response.json()["nodes"]}["s1"]["kinds"] == ["water_level"]
+    assert set(heard["s1"]["measurements"]) == {"water_level"}
+
+
+def test_editing_a_sensors_kinds_is_refused_for_a_kind_not_on_offer(
+    pack: Path, scratch: Path
+) -> None:
+    where = {"latitude": SENSOR_SITES[1].latitude, "longitude": SENSOR_SITES[1].longitude}
+    with Sandbox(pack) as sandbox:
+        response = _sensors(sandbox, "PUT", "/s1", **where, kinds=["humidity"])
+        kinds = _nodes(sandbox)["s1"]["kinds"]
+
+    assert response.status_code == 409
+    assert "humidity is not on offer" in response.json()["detail"]
+    assert kinds == FLOOD_KINDS
+
+
+def test_a_sensor_remembers_what_was_unticked_when_the_event_changes(
+    pack: Path, scratch: Path
+) -> None:
+    where = {"latitude": SENSOR_SITES[1].latitude, "longitude": SENSOR_SITES[1].longitude}
+    with Sandbox(pack) as sandbox:
+        _sensors(
+            sandbox, "PUT", "/s1", **where, kinds=["water_level", "soil_moisture", "air_pressure"]
+        )
+        _start_made_up_event(sandbox)
+        nodes = _nodes(sandbox)
+
+    assert nodes["s1"]["kinds"] == [
+        "water_level",
+        "soil_moisture",
+        "air_pressure",
+        *MADE_UP_KINDS,
+    ]
+    assert nodes["s2"]["kinds"] == [*FLOOD_KINDS, *MADE_UP_KINDS]
+
+
+def test_a_sensor_sends_the_new_events_tracks_after_an_event_switch(
+    pack: Path, scratch: Path
+) -> None:
+    where = {"latitude": SENSOR_SITES[1].latitude, "longitude": SENSOR_SITES[1].longitude}
+    with Sandbox(pack) as sandbox:
+        _start_made_up_event(sandbox)
+        # Moving a Sensor makes it share at once, so its reading is the new Event's.
+        _sensors(sandbox, "PUT", "/s1", **where)
+        heard = _heard_by_hub(sandbox)
+
+    assert set(heard["s1"]["measurements"]) >= set(MADE_UP_KINDS)
+
+
+def test_a_region_switch_starts_new_sensors_with_nothing_unticked(
+    pack: Path, scratch: Path, tmp_path: Path
+) -> None:
+    nepal = _a_nepal_pack(tmp_path)
+    with Sandbox(pack, find_pack=lambda region: nepal) as sandbox:
+        where = {"latitude": SENSOR_SITES[1].latitude, "longitude": SENSOR_SITES[1].longitude}
+        _sensors(sandbox, "PUT", "/s1", **where, kinds=["water_level"])
+        TestClient(sandbox.hub).post("/api/sandbox/region", json={"region": "nepal"})
+        nodes = _nodes(sandbox)
+        offered = _offered(sandbox)
+
+    assert nodes["s0"]["kinds"] == offered
+    assert nodes["s1"]["kinds"] == [kind for kind in offered if kind != "camera"]
