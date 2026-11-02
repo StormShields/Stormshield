@@ -236,6 +236,17 @@ class MeshedNodes:
         self._hand_fed[sender] = mesh
         return mesh[0]
 
+    def record_readings(self) -> list[CommunityReading]:
+        """Join a Node that only listens; every Community Reading it hears is appended to the list."""
+        heard: list[CommunityReading] = []
+        mesh = self._network.join("reading-recorder", HUB)
+        mesh.subscribe(
+            lambda _, message: (
+                heard.append(message) if isinstance(message, CommunityReading) else None
+            )
+        )
+        return heard
+
     def record_shelter_status(self) -> list[ShelterStatus]:
         """Join a Node that only listens; every Shelter status it hears is appended to the list."""
         heard: list[ShelterStatus] = []
