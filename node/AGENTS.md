@@ -31,7 +31,6 @@ Area gotchas that are still true. Claude Code loads this file (through `CLAUDE.m
 - **`RNS.Identity.from_file` returns `None` on a damaged file** and `to_file` writes 644; `load_or_create_identity` handles both.
 - **Mesh decode and delivery go through `mesh.decode_message` and `deliver_to_listeners`** for both Meshes; add rules there.
 - **A Sensor sends an Event's extra `tracks` (made-up Events only) only when `NODE_MEASURES` names the kind**; the default names the flood four, so only the Sandbox (`SANDBOX_MEASURES`) or a Node told so sends `air_temperature`, `humidity`, `wind_speed`.
-
 - **A Camera is a Sensor whose `NODE_MEASURES` names `camera`**: each share bumps its picture number and redraws its one in-memory SVG (`camera.py`, fed only a water depth, so nothing about where it is can leak). The Sandbox Hub reads Sensors' pictures in-process at `/api/sandbox/sensors/<id>/picture`; `MeshedNodes.record_readings()` hears what is on the Mesh.
 
 Networking and Pi lessons (firewalls, TCP peers) are in `pi/AGENTS.md`.

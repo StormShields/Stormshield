@@ -115,3 +115,17 @@ def test_a_live_hub_hides_a_simulated_camera(meshed_nodes: MeshedNodes) -> None:
 
     nodes = meshed_nodes["hub"].get("/api/state").json()["nodes"]
     assert [n["id"] for n in nodes if n["id"] != "hub"] == ["real"]
+
+
+def test_a_camera_reading_does_not_change_flood_risk(meshed_nodes: MeshedNodes) -> None:
+    meshed_nodes.start_hub()
+    meshed_nodes.announce_sign_up("cam", "cam")
+    meshed_nodes["hub"].post("/api/registry/accept", json={"id": "cam"})
+    meshed_nodes.hear_from("cam", water_cm=340, river_km=3.4)
+    before = meshed_nodes["hub"].get("/api/state").json()["flood_risk"]
+
+    meshed_nodes.hear_from(
+        "cam", water_cm=340, river_km=3.4, also=[Measurement("camera", 1, "pic")]
+    )
+
+    assert meshed_nodes["hub"].get("/api/state").json()["flood_risk"] == before

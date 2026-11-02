@@ -318,12 +318,12 @@ def create_app(
 
     def take_picture(readings: list[Reading], spot: SensorSpot) -> Reading:
         """Draw the newest picture, keeping only it, and say in a Reading that it exists."""
-        level = next((r.value for r in readings if r.kind == "water_level"), None)
-        # A coast's level is a height above the datum, so the water's depth is what rises over the ground.
-        if level is not None and spot.ground_m is not None:
-            level -= spot.ground_m
+        depth = next((r.value for r in readings if r.kind == "water_level"), None)
+        # A coast's level is a height above the datum; the water's depth is what is over the ground.
+        if depth is not None and spot.ground_m is not None:
+            depth -= spot.ground_m
         picture_count[0] += 1
-        newest_picture[0] = draw_picture(level)
+        newest_picture[0] = draw_picture(depth)
         return Reading(kind=CAMERA_KIND, value=picture_count[0], unit="pic", timestamp=clock())
 
     def offered_kinds() -> list[str]:

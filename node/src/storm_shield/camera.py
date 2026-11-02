@@ -10,6 +10,10 @@ _STAFF_X = 270
 _STAFF_TOP_Y = 30
 
 
+def _y_at(metres: float) -> float:
+    return _GROUND_Y - (_GROUND_Y - _STAFF_TOP_Y) * metres / STAFF_TOP_M
+
+
 def draw_picture(depth_m: float | None) -> str:
     """An SVG of the water `depth_m` deep against a depth staff; None draws dry ground."""
     if depth_m is None:
@@ -17,7 +21,7 @@ def draw_picture(depth_m: float | None) -> str:
         caption = "DRY"
     else:
         shown = min(max(depth_m, 0.0), STAFF_TOP_M)
-        top = _GROUND_Y - (_GROUND_Y - _STAFF_TOP_Y) * shown / STAFF_TOP_M
+        top = _y_at(shown)
         water = (
             f'<rect x="0" y="{top:.1f}" width="{_WIDTH}" height="{_GROUND_Y - top:.1f}" '
             'fill="#3b82c4" opacity="0.8"/>'
@@ -26,11 +30,9 @@ def draw_picture(depth_m: float | None) -> str:
         )
         caption = f"WATER {depth_m:.1f} m"
     ticks = "".join(
-        f'<line x1="{_STAFF_X - 8}" y1="{y:.1f}" x2="{_STAFF_X + 8}" y2="{y:.1f}" stroke="#222"/>'
-        for y in (
-            _GROUND_Y - (_GROUND_Y - _STAFF_TOP_Y) * metre / STAFF_TOP_M
-            for metre in range(int(STAFF_TOP_M) + 1)
-        )
+        f'<line x1="{_STAFF_X - 8}" y1="{_y_at(metre):.1f}" x2="{_STAFF_X + 8}" '
+        f'y2="{_y_at(metre):.1f}" stroke="#222"/>'
+        for metre in range(int(STAFF_TOP_M) + 1)
     )
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {_WIDTH} {_HEIGHT}" '
