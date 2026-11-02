@@ -104,6 +104,19 @@ def test_a_start_failure_opens_a_page_with_the_error_and_the_logs_path(
     assert str(tmp_path / sandbox_app.LOG_FILE_NAME) in page
 
 
+def test_a_port_that_cannot_be_bound_still_opens_the_failure_page(
+    monkeypatch: pytest.MonkeyPatch, opened: list[str]
+) -> None:
+    def cannot_bind(port: int, region: str) -> None:
+        raise SystemExit(1)
+
+    monkeypatch.setattr(sandbox_app, "serve", cannot_bind)
+    _prefer(monkeypatch, sandbox_app.free_port())
+    with pytest.raises(SystemExit):
+        sandbox_app.main()
+    assert len(opened) == 1
+
+
 def test_the_app_logs_to_a_file_in_the_temp_folder(
     monkeypatch: pytest.MonkeyPatch, opened: list[str], started: list[int], tmp_path: Path
 ) -> None:

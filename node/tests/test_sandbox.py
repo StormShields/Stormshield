@@ -116,7 +116,10 @@ def test_a_node_outside_the_sandbox_reports_no_sandbox(meshed_nodes: MeshedNodes
 @pytest.fixture
 def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """An empty checkout, so a test decides which packs are on disk."""
-    monkeypatch.setattr(sandbox_module, "REPO", tmp_path / "repo")
+    monkeypatch.setattr(sandbox_module, "BUILT_PACKS_DIR", tmp_path / "repo" / "node" / "build")
+    monkeypatch.setattr(
+        sandbox_module, "DOWNLOADED_PACKS_DIR", tmp_path / "repo" / ".demo" / "pack"
+    )
     return tmp_path / "repo"
 
 

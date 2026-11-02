@@ -20,7 +20,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from starlette.types import Receive, Scope, Send
 
-from storm_shield.app_files import APP_ROOT, DASHBOARD_DIR
+from storm_shield.app_files import APP_ROOT, BUILT_PACKS_DIR, DASHBOARD_DIR, DOWNLOADED_PACKS_DIR
 from storm_shield.cache_pack import CachePack, InvalidCachePack, download_source
 from storm_shield.community_reading import Position
 from storm_shield.main import create_app
@@ -53,7 +53,6 @@ SITE_TAKEN_WITHIN_M = 50.0
 # it towards the spec's 1 km.
 SANDBOX_RADIO_RANGE_M = 40_000.0
 DOWNLOAD_TIMEOUT_SECONDS = 120
-REPO = APP_ROOT
 BUILT_DASHBOARD = DASHBOARD_DIR / "index.html"
 
 
@@ -560,10 +559,10 @@ def pack_for(region: str, client: httpx.Client, override: str = "") -> Path:
     """The Region's Cache Pack: the one its build command wrote, else the one fetched from its
     Release on an earlier run, else the Release itself. Says which command to run when none is
     there."""
-    built = REPO / "node" / "build" / region / "cache-pack.zip"
+    built = BUILT_PACKS_DIR / region / "cache-pack.zip"
     if built.is_file():
         return built
-    downloaded = REPO / ".demo" / "pack" / region / "cache-pack.zip"
+    downloaded = DOWNLOADED_PACKS_DIR / region / "cache-pack.zip"
     if downloaded.is_file():
         return downloaded
     build_command = f"scripts/build-cache-pack.sh {region}"
@@ -596,7 +595,7 @@ def build_dashboard_if_missing() -> None:
     if BUILT_DASHBOARD.is_file():
         return
     logger.info("building the dashboard (once)")
-    dashboard = REPO / "dashboard"
+    dashboard = APP_ROOT / "dashboard"
     try:
         for command in (["pnpm", "install", "--frozen-lockfile"], ["pnpm", "build"]):
             subprocess.run(command, cwd=dashboard, check=True, capture_output=True)

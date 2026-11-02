@@ -54,7 +54,8 @@ def free_port() -> int:
 
 
 def write_failure_page(error: BaseException, log: Path) -> Path:
-    page = Path(tempfile.gettempdir()) / FAILURE_PAGE_NAME
+    # A fresh folder, so a file planted at a predictable name in the shared temp folder is not followed.
+    page = Path(tempfile.mkdtemp(prefix="storm-shield-")) / FAILURE_PAGE_NAME
     page.write_text(
         "<!doctype html><meta charset=utf-8><title>Storm Shield Sandbox could not start</title>"
         "<h1>Storm Shield Sandbox could not start</h1>"
@@ -76,7 +77,8 @@ def main() -> None:
         port = PREFERRED_PORT if _bindable(PREFERRED_PORT) else free_port()
         serve(port, Settings().region)
     # Whatever went wrong, the person double-clicking has no terminal: it all has to reach the page.
-    except Exception as error:  # noqa: BLE001
+    # uvicorn exits with SystemExit when it cannot bind, which is also a failure to start.
+    except (Exception, SystemExit) as error:  # noqa: BLE001
         logger.error("the Sandbox could not start\n%s", traceback.format_exc())
         webbrowser.open(write_failure_page(error, log).as_uri())
         sys.exit(1)
