@@ -47,14 +47,14 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-async function cameraCard(name: string) {
+async function renderedCard(name: string) {
   if (!document.body.firstChild) render(<App />);
   return await screen.findByRole("region", { name: `Node ${name}` });
 }
 
 test("in the Sandbox a Camera line opens its picture, marked SIMULATED, and it follows the picture number", async () => {
   stubTheNode({ sandbox: true });
-  const card = await cameraCard("hilltop");
+  const card = await renderedCard("hilltop");
   const line = await within(card).findByRole("button", { name: "Camera: Picture 9" });
   expect(within(card).queryByRole("img")).not.toBeInTheDocument();
 
@@ -68,7 +68,7 @@ test("in the Sandbox a Camera line opens its picture, marked SIMULATED, and it f
     within(figure).getByText(/Stays on this Camera; it does not cross the Mesh/),
   ).toBeInTheDocument();
 
-  const porch = await cameraCard("porch");
+  const porch = await renderedCard("porch");
   fireEvent.click(within(porch).getByRole("button", { name: "Camera: Picture 1" }));
   expect(within(porch).getByRole("img").getAttribute("src")).toContain("picture=1");
   pictureNumber = 2;
@@ -84,11 +84,11 @@ test("in the Sandbox a Camera line opens its picture, marked SIMULATED, and it f
 
 test("outside the Sandbox only the connected Node's own Camera can open", async () => {
   stubTheNode({ sandbox: false });
-  const other = await cameraCard("hilltop");
+  const other = await renderedCard("hilltop");
   expect(within(other).queryByRole("button", { name: /Camera/ })).not.toBeInTheDocument();
   expect(within(other).getByText("Camera: Picture 9")).toBeInTheDocument();
 
-  const own = await cameraCard("porch");
+  const own = await renderedCard("porch");
   fireEvent.click(await within(own).findByRole("button", { name: "Camera: Picture 1" }));
   expect(within(own).getByRole("img").getAttribute("src")).toBe("/api/camera/picture?picture=1");
 });

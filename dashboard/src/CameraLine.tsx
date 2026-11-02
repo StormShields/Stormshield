@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { kindLabel } from "./ReadingsPanel";
 import { ReadingSlot } from "./ReadingSlot";
 
 type Props = {
@@ -14,7 +15,7 @@ type Props = {
 // on any Sensor's picture, and outside the Sandbox only this Node's own Camera is reachable.
 export function CameraLine({ pictureNumber, shown, pictureUrl }: Props) {
   const [open, setOpen] = useState(false);
-  const label = `Camera: ${shown}`;
+  const label = `${kindLabel("camera")}: ${shown}`;
   return (
     <>
       <ReadingSlot value={pictureNumber}>
