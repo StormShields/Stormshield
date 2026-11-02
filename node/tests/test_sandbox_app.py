@@ -53,7 +53,7 @@ def opened(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> list[str]:
 @pytest.fixture
 def started(monkeypatch: pytest.MonkeyPatch) -> list[int]:
     ports: list[int] = []
-    monkeypatch.setattr(sandbox_module, "serve", lambda port, region: ports.append(port))
+    monkeypatch.setattr(sandbox_module, "serve", lambda port, region, app=False: ports.append(port))
     return ports
 
 
@@ -95,7 +95,7 @@ def test_a_free_preferred_port_is_used(
 def test_a_start_failure_opens_a_page_with_the_error_and_the_logs_path(
     monkeypatch: pytest.MonkeyPatch, opened: list[str], tmp_path: Path
 ) -> None:
-    def fail(port: int, region: str) -> None:
+    def fail(port: int, region: str, app: bool = False) -> None:
         raise RuntimeError("no <Cache Pack> here")
 
     monkeypatch.setattr(sandbox_module, "serve", fail)
@@ -111,7 +111,7 @@ def test_a_start_failure_opens_a_page_with_the_error_and_the_logs_path(
 def test_a_port_that_cannot_be_bound_still_opens_the_failure_page(
     monkeypatch: pytest.MonkeyPatch, opened: list[str]
 ) -> None:
-    def cannot_bind(port: int, region: str) -> None:
+    def cannot_bind(port: int, region: str, app: bool = False) -> None:
         raise SystemExit(1)
 
     monkeypatch.setattr(sandbox_module, "serve", cannot_bind)
@@ -131,7 +131,7 @@ def test_a_bind_lost_to_a_sandbox_that_just_started_opens_that_sandbox(
     monkeypatch.setattr(sandbox_app, "sandbox_is_running_on", lambda _port: next(answers))
     monkeypatch.setattr(sandbox_app, "_bindable", lambda _port: True)
 
-    def lost_the_race(port: int, region: str) -> None:
+    def lost_the_race(port: int, region: str, app: bool = False) -> None:
         raise SystemExit(3)
 
     monkeypatch.setattr(sandbox_module, "serve", lost_the_race)
@@ -143,7 +143,7 @@ def test_a_bind_lost_to_a_sandbox_that_just_started_opens_that_sandbox(
 def test_the_servers_own_reason_for_not_binding_is_on_the_page(
     monkeypatch: pytest.MonkeyPatch, opened: list[str]
 ) -> None:
-    def cannot_bind(port: int, region: str) -> None:
+    def cannot_bind(port: int, region: str, app: bool = False) -> None:
         logging.getLogger("uvicorn.error").error("address already in use")
         raise SystemExit(3)
 
@@ -184,7 +184,9 @@ def test_the_app_logs_to_a_file_in_the_temp_folder(
     monkeypatch: pytest.MonkeyPatch, opened: list[str], started: list[int], tmp_path: Path
 ) -> None:
     _prefer(monkeypatch, sandbox_app.free_port())
-    monkeypatch.setattr(sandbox_module, "serve", lambda port, region: _log.info("serving"))
+    monkeypatch.setattr(
+        sandbox_module, "serve", lambda port, region, app=False: _log.info("serving")
+    )
     sandbox_app.main()
     logging.shutdown()
     assert "serving" in (tmp_path / sandbox_app.LOG_FILE_NAME).read_text()

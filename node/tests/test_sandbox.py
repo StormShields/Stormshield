@@ -1,5 +1,7 @@
 import tempfile
+import threading
 import time
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +24,7 @@ from storm_shield.sandbox import (
     pack_for,
     sites_of,
 )
+from storm_shield.sandbox_app import free_port
 
 # On the bay shore, where the Event's water arrives first, and on a hill inland that it never reaches.
 BY_THE_BAY = {"latitude": 26.4507, "longitude": -81.9533}
@@ -68,7 +71,7 @@ def test_every_sensor_is_registered_and_its_reading_is_in_the_hubs_state(
     with Sandbox(pack) as sandbox:
         state = TestClient(sandbox.hub).get("/api/state").json()
 
-    assert state["sandbox"] == {"label": "SIMULATED"}
+    assert state["sandbox"] == {"label": "SIMULATED", "can_stop": False}
     nodes = {node["id"]: node for node in state["nodes"]}
     for site in SENSOR_SITES:
         assert nodes[site.name]["registered"] is True
@@ -669,3 +672,137 @@ def test_a_node_outside_the_sandbox_has_no_picture_pass_through(meshed_nodes: Me
     meshed_nodes.start_hub()
 
     assert meshed_nodes["hub"].get("/api/sandbox/sensors/s0/picture").status_code == 404
+
+
+IDLE_LIMIT = timedelta(minutes=10)
+LOOPBACK_CLIENT = ("127.0.0.1", 50000)
+HERE = "http://127.0.0.1:8000"
+
+
+class _FakeClock:
+    def __init__(self) -> None:
+        self.now = datetime(2026, 8, 26, 6, 0, tzinfo=UTC)
+
+    def __call__(self) -> datetime:
+        return self.now
+
+
+def _app(
+    sandbox: Sandbox, *, client: tuple[str, int] = LOOPBACK_CLIENT, host: str = "127.0.0.1:8000"
+) -> TestClient:
+    return TestClient(sandbox.hub, client=client, base_url=f"http://{host}")
+
+
+def test_stop_ends_the_app_and_its_state_says_the_panel_may_offer_it(
+    pack: Path, scratch: Path
+) -> None:
+    with Sandbox(pack, app=True) as sandbox:
+        assert _app(sandbox).get("/api/state").json()["sandbox"]["can_stop"] is True
+        assert not sandbox.stopped.is_set()
+
+        response = _app(sandbox).post("/api/sandbox/stop", headers={"Origin": HERE})
+
+        assert response.status_code == 200
+        assert sandbox.stopped.is_set()
+    assert list(scratch.iterdir()) == []
+
+
+def test_stop_refuses_a_foreign_origin(pack: Path, scratch: Path) -> None:
+    with Sandbox(pack, app=True) as sandbox:
+        for origin in ("https://evil.example", "http://127.0.0.1:9999", "null"):
+            response = _app(sandbox).post("/api/sandbox/stop", headers={"Origin": origin})
+            assert response.status_code == 403
+        assert not sandbox.stopped.is_set()
+
+
+def test_stop_refuses_a_page_that_reached_loopback_under_another_name(
+    pack: Path, scratch: Path
+) -> None:
+    with Sandbox(pack, app=True) as sandbox:
+        response = _app(sandbox, host="evil.example:8000").post(
+            "/api/sandbox/stop", headers={"Origin": "http://evil.example:8000"}
+        )
+        assert response.status_code == 403
+        assert not sandbox.stopped.is_set()
+
+
+def test_stop_refuses_a_client_that_is_not_on_loopback(pack: Path, scratch: Path) -> None:
+    with Sandbox(pack, app=True) as sandbox:
+        response = _app(sandbox, client=("192.168.1.20", 50000)).post(
+            "/api/sandbox/stop", headers={"Origin": HERE}
+        )
+        assert response.status_code == 403
+        assert not sandbox.stopped.is_set()
+
+
+def test_outside_the_app_there_is_no_stop(pack: Path, scratch: Path) -> None:
+    with Sandbox(pack) as sandbox:
+        assert _app(sandbox).get("/api/state").json()["sandbox"]["can_stop"] is False
+        response = _app(sandbox).post("/api/sandbox/stop", headers={"Origin": HERE})
+        assert response.status_code in (404, 405)
+        assert not sandbox.stopped.is_set()
+
+
+def test_the_app_is_idle_after_ten_minutes_with_no_state_request(pack: Path, scratch: Path) -> None:
+    clock = _FakeClock()
+    with Sandbox(pack, app=True, clock=clock) as sandbox:
+        clock.now += IDLE_LIMIT - timedelta(seconds=1)
+        assert not sandbox.is_idle()
+
+        _app(sandbox).get("/api/state")
+        clock.now += IDLE_LIMIT - timedelta(seconds=1)
+        assert not sandbox.is_idle()
+
+        clock.now += timedelta(seconds=2)
+        assert sandbox.is_idle()
+
+
+def test_other_requests_do_not_keep_the_app_alive(pack: Path, scratch: Path) -> None:
+    clock = _FakeClock()
+    with Sandbox(pack, app=True, clock=clock) as sandbox:
+        clock.now += IDLE_LIMIT - timedelta(seconds=1)
+        _app(sandbox).get("/api/sandbox/nodes")
+        clock.now += timedelta(seconds=2)
+        assert sandbox.is_idle()
+
+
+def test_outside_the_app_the_sandbox_is_never_idle(pack: Path, scratch: Path) -> None:
+    clock = _FakeClock()
+    with Sandbox(pack, clock=clock) as sandbox:
+        clock.now += timedelta(days=2)
+        assert not sandbox.is_idle()
+
+
+def test_serving_the_app_ends_on_stop_and_removes_its_folder(
+    pack: Path, scratch: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(sandbox_module, "_open_browser_when_up", lambda server, url: None)
+    port = free_port()
+    served = threading.Thread(
+        target=sandbox_module.serve, args=(port, "fort-myers", pack), kwargs={"app": True}
+    )
+    served.start()
+    try:
+        _wait_until_up(port)
+        stopped = httpx.post(
+            f"http://127.0.0.1:{port}/api/sandbox/stop",
+            headers={"Origin": f"http://127.0.0.1:{port}"},
+        )
+        assert stopped.status_code == 200
+        served.join(timeout=30)
+        assert not served.is_alive()
+    finally:
+        if served.is_alive():  # pragma: no cover
+            pytest.fail("the app did not end after Stop")
+    assert list(scratch.iterdir()) == []
+
+
+def _wait_until_up(port: int) -> None:
+    deadline = time.monotonic() + 30
+    while time.monotonic() < deadline:
+        try:
+            httpx.get(f"http://127.0.0.1:{port}/api/state", timeout=1)
+            return
+        except httpx.HTTPError:
+            time.sleep(0.2)
+    pytest.fail("the Sandbox did not come up")

@@ -79,6 +79,10 @@ function stubTheHub(options: {
   heardNodes?: boolean;
   // What the Hub answers when asked to switch Region: a message refuses with it.
   regionRefusal?: string;
+  // The app can be stopped from its Panel; the Sandbox from a checkout cannot.
+  canStop?: boolean;
+  // What the Hub answers to Stop: a message refuses with it.
+  stopRefusal?: string;
 }) {
   posted = [];
   sent = [];
@@ -107,6 +111,13 @@ function stubTheHub(options: {
       current = answer;
       return Response.json(current);
     }
+    if (path === "/api/sandbox/stop" && init?.method === "POST") {
+      posted.push({ path, body: undefined });
+      if (options.stopRefusal) {
+        return Response.json({ detail: options.stopRefusal }, { status: 403 });
+      }
+      return Response.json({ stopping: true });
+    }
     if (path === "/api/sandbox/regions") return Response.json(REGIONS);
     if (path === "/api/sandbox/region" && init?.method === "POST") {
       const body = JSON.parse(init.body as string);
@@ -121,7 +132,9 @@ function stubTheHub(options: {
         nepalNodeState({
           id: "hub",
           name: "hub",
-          sandbox: options.sandbox ? { label: "SIMULATED" } : null,
+          sandbox: options.sandbox
+            ? { label: "SIMULATED", can_stop: options.canStop ?? false }
+            : null,
           // Where the readings say, which is not quite where the Node is.
           nodes: options.heardNodes
             ? WIDE.nodes.map((each) =>
@@ -525,4 +538,33 @@ test("a refused kind shows the Hub's sentence", async () => {
   expect(await within(panel).findByRole("alert")).toHaveTextContent(
     "Could not change the Sensor's kinds: the Hub said no",
   );
+});
+
+test("the app's Panel has a Stop button, and after it the page says it is safe to close", async () => {
+  stubTheHub({ sandbox: true, canStop: true });
+  const panel = await sandboxPanel();
+  fireEvent.click(await within(panel).findByRole("button", { name: "Stop Sandbox" }));
+  expect(await screen.findByText("It is safe to close this tab.")).toBeInTheDocument();
+  expect(posted).toEqual([{ path: "/api/sandbox/stop", body: undefined }]);
+});
+
+test("a Stop the Hub refuses says so and leaves the dashboard up", async () => {
+  stubTheHub({
+    sandbox: true,
+    canStop: true,
+    stopRefusal: "only this Sandbox's own page can stop it",
+  });
+  const panel = await sandboxPanel();
+  fireEvent.click(await within(panel).findByRole("button", { name: "Stop Sandbox" }));
+  expect(await within(panel).findByRole("alert")).toHaveTextContent(
+    "Could not stop the Sandbox: only this Sandbox's own page can stop it",
+  );
+  expect(screen.queryByText("It is safe to close this tab.")).not.toBeInTheDocument();
+});
+
+test("outside the app the Panel has no Stop button", async () => {
+  stubTheHub({ sandbox: true });
+  const panel = await sandboxPanel();
+  await within(panel).findAllByRole("listitem");
+  expect(within(panel).queryByRole("button", { name: "Stop Sandbox" })).not.toBeInTheDocument();
 });

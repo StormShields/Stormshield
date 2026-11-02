@@ -100,7 +100,7 @@ def main() -> None:
         from storm_shield.sandbox import serve
 
         port = PREFERRED_PORT if _bindable(PREFERRED_PORT) else free_port()
-        serve(port, Settings().region)
+        serve(port, Settings().region, app=True)
     except (Exception, SystemExit) as error:  # noqa: BLE001
         logger.error("the Sandbox could not start\n%s", traceback.format_exc())
         # Two quick launches both find 8000 free and the slower one loses the bind: the winner is

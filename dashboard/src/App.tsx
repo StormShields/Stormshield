@@ -99,7 +99,9 @@ export function App() {
     removeSensor,
     setSensorKinds,
     switchRegion,
+    stopSandbox,
   } = useSandboxNodes(state?.sandbox != null, refresh);
+  const [sandboxStopped, setSandboxStopped] = useState(false);
   const [sandboxPanelOpen, setSandboxPanelOpen] = useState(true);
   const [placingSensor, setPlacingSensor] = useState(false);
   const eventClock = useEventClock(!unreachable);
@@ -273,6 +275,15 @@ export function App() {
       sandbox={sandbox}
       regions={regions}
       onSwitchRegion={switchRegion}
+      onStop={
+        state?.sandbox?.can_stop
+          ? () =>
+              void stopSandbox().then(
+                () => setSandboxStopped(true),
+                () => {},
+              )
+          : null
+      }
       problem={problem}
       onSetRadioRange={setRadioRange}
       placing={placingSensor}
@@ -341,6 +352,14 @@ export function App() {
         }
       : null;
   const selectedNode = nodes.find((node) => node.id === selectedId);
+  if (sandboxStopped) {
+    return (
+      <main className="sandbox-stopped">
+        <h1>Storm Shield Sandbox has stopped</h1>
+        <p>It is safe to close this tab.</p>
+      </main>
+    );
+  }
   return (
     <RegionContext.Provider value={region}>
       <main className={phone ? "phone" : undefined}>

@@ -13,7 +13,7 @@ function stubTheNode({ sandbox }: { sandbox: boolean }) {
         nepalNodeState({
           id: "porch",
           name: "porch",
-          sandbox: sandbox ? { label: "SIMULATED" } : null,
+          sandbox: sandbox ? { label: "SIMULATED", can_stop: false } : null,
           nodes: [
             fakeNodeSnapshot("porch", {
               measurements: { camera: { value: pictureNumber, unit: "pic" } },
