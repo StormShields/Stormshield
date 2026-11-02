@@ -436,6 +436,13 @@ class _Controls(SandboxControls):
             del self._unticked[sensor_id]
             return self.nodes()
 
+    def picture(self, sensor_id: str) -> bytes | None:
+        with self._lock:
+            self._require_sensor(sensor_id)
+            # In-process, so radio range does not matter and nothing crosses the Mesh.
+            answer = self._nodes[sensor_id].get("/api/camera/picture")
+        return answer.content if answer.status_code == 200 else None
+
     def regions(self) -> SandboxRegions:
         return SandboxRegions(
             current=self._region,

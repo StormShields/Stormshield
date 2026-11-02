@@ -21,6 +21,7 @@ from storm_shield.cache_pack import (
     CachePack,
     download_source,
 )
+from storm_shield.camera import draw_picture
 from storm_shield.community_reading import CommunityReading, Position, Reading, fuzz_position
 from storm_shield.community_warning import CommunityWarning, HeardCommunityWarnings, HubWarnings
 from storm_shield.flood_email import FloodEmail
@@ -290,6 +291,9 @@ def create_app(
                 ground_heights[spot] = None
         return ground_heights[spot]
 
+    picture_count = [0]
+    newest_picture: list[str | None] = [None]
+
     def own_measurements() -> list[Reading] | None:
         """What this Node reads from the Event's surface at its own position.
 
@@ -307,7 +311,20 @@ def create_app(
         )
         readings = event.readings_at(spot, event_t, clock())
         declared = measured_kinds()
-        return [r for r in readings if r.kind in declared] or None
+        shown = [r for r in readings if r.kind in declared]
+        if CAMERA_KIND in declared:
+            shown.append(take_picture(readings, spot))
+        return shown or None
+
+    def take_picture(readings: list[Reading], spot: SensorSpot) -> Reading:
+        """Draw the newest picture, keeping only it, and say in a Reading that it exists."""
+        depth = next((r.value for r in readings if r.kind == "water_level"), None)
+        # A coast's level is a height above the datum; the water's depth is what is over the ground.
+        if depth is not None and spot.ground_m is not None:
+            depth -= spot.ground_m
+        picture_count[0] += 1
+        newest_picture[0] = draw_picture(depth)
+        return Reading(kind=CAMERA_KIND, value=picture_count[0], unit="pic", timestamp=clock())
 
     def offered_kinds() -> list[str]:
         """The kinds the playing Event can supply, then `camera`, which the Node makes itself."""
@@ -746,6 +763,13 @@ def create_app(
     app.state.share_reading = publisher.share
     app.state.offered_kinds = offered_kinds
 
+    @app.get("/api/camera/picture")
+    def camera_picture() -> Response:
+        """The newest picture, which never leaves this Node over the Mesh."""
+        if CAMERA_KIND not in measured_kinds() or newest_picture[0] is None:
+            raise HTTPException(status_code=404, detail="this Node has no Camera picture")
+        return Response(newest_picture[0], media_type="image/svg+xml")
+
     @app.get("/api/state")
     def node_state() -> NodeState:
         registered_ids = heard_registry.registered_ids()
@@ -1021,6 +1045,16 @@ def create_app(
                 raise HTTPException(status_code=404, detail=f"no Sensor {sensor_id!r}") from None
             except SandboxRefused as refusal:
                 raise HTTPException(status_code=409, detail=str(refusal)) from None
+
+        @app.get("/api/sandbox/sensors/{sensor_id}/picture")
+        def sandbox_sensor_picture(sensor_id: str) -> Response:
+            try:
+                picture = sandbox.picture(sensor_id)
+            except UnknownSensor:
+                raise HTTPException(status_code=404, detail=f"no Sensor {sensor_id!r}") from None
+            if picture is None:
+                raise HTTPException(status_code=404, detail=f"{sensor_id!r} is not a Camera")
+            return Response(picture, media_type="image/svg+xml")
 
         @app.get("/api/sandbox/regions")
         def sandbox_regions() -> SandboxRegions:

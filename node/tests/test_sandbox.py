@@ -78,6 +78,8 @@ def test_every_sensor_is_registered_and_its_reading_is_in_the_hubs_state(
             "rain_rate",
             "soil_moisture",
             "air_pressure",
+            # The first Sensor is the Camera.
+            *(["camera"] if site.name == "s0" else []),
         }
 
 
@@ -551,7 +553,7 @@ def test_a_sensor_added_with_a_kinds_list_declares_only_those(pack: Path, scratc
 
     added = {node["id"]: node for node in response.json()["nodes"]}[FIRST_ADDED]
     assert added["kinds"] == ["water_level", "camera"]
-    assert set(heard[FIRST_ADDED]["measurements"]) == {"water_level"}
+    assert set(heard[FIRST_ADDED]["measurements"]) == {"water_level", "camera"}
 
 
 def test_a_kind_not_on_offer_is_refused_with_a_sentence_and_adds_no_sensor(
@@ -642,3 +644,25 @@ def test_a_region_switch_starts_new_sensors_with_nothing_unticked(
 
     assert nodes["s0"]["kinds"] == offered
     assert nodes["s1"]["kinds"] == [kind for kind in offered if kind != "camera"]
+
+
+def test_the_hub_passes_on_the_first_sensors_camera_picture_regardless_of_radio_range(
+    pack: Path, scratch: Path
+) -> None:
+    with Sandbox(pack) as sandbox:
+        _set_radio_range(sandbox, 1)
+        camera = TestClient(sandbox.hub).get("/api/sandbox/sensors/s0/picture")
+        other = TestClient(sandbox.hub).get("/api/sandbox/sensors/s1/picture")
+        unknown = TestClient(sandbox.hub).get("/api/sandbox/sensors/nobody/picture")
+
+    assert camera.status_code == 200
+    assert camera.headers["content-type"].startswith("image/svg+xml")
+    assert "SIMULATED" in camera.text
+    assert other.status_code == 404
+    assert unknown.status_code == 404
+
+
+def test_a_node_outside_the_sandbox_has_no_picture_pass_through(meshed_nodes: MeshedNodes) -> None:
+    meshed_nodes.start_hub()
+
+    assert meshed_nodes["hub"].get("/api/sandbox/sensors/s0/picture").status_code == 404
