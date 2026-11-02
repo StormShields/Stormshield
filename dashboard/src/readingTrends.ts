@@ -58,6 +58,8 @@ export function trendsOf(
   const trends: Record<string, Trend> = {};
   for (const node of nodes) {
     for (const { kind } of node.measurements) {
+      // A picture number counts up; it is not a measurement going up.
+      if (kind === "camera") continue;
       const key = historyKey(node.id, kind);
       trends[key] = trendOf(history[key], kind, now);
     }

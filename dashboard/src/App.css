@@ -1735,8 +1735,10 @@ section p.flood-prone-caption {
 
 .reading-row .reading-slot {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
-  white-space: nowrap;
+  column-gap: 0.5rem;
+  overflow-wrap: anywhere;
 }
 
 .slot-value.tick {

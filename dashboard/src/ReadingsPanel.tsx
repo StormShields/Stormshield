@@ -12,14 +12,23 @@ import { usePrefersReducedMotion } from "./useViewport";
 
 const KIND_LABELS: Partial<Record<ReadingKind, string>> = {
   air_pressure: "Pressure",
+  air_temperature: "Air temperature",
+  camera: "Camera",
+  humidity: "Humidity",
   rain_rate: "Rain rate",
   water_level: "Water level",
   soil_moisture: "Soil moisture",
+  wind_speed: "Wind speed",
 };
 
-// A kind the dashboard has no label for reads as its own name: "wind_speed" is "Wind speed".
+const SNAKE_CASE_NAME = /^[a-z][a-z0-9]*(_[a-z0-9]+)*$/;
+
+// A kind the dashboard has no label for reads as its own name: "soil_temperature" is "Soil
+// temperature", and a name that isn't plain snake_case is shown exactly as sent. A kind is data,
+// so "constructor" and "__proto__" must not find anything on Object.prototype.
 export function kindLabel(kind: ReadingKind): string {
-  if (KIND_LABELS[kind]) return KIND_LABELS[kind];
+  if (Object.hasOwn(KIND_LABELS, kind)) return KIND_LABELS[kind] as string;
+  if (!SNAKE_CASE_NAME.test(kind)) return kind;
   const words = kind.replaceAll("_", " ");
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
