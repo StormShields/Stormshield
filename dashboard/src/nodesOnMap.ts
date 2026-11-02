@@ -1,4 +1,4 @@
-import { inDisplayUnit } from "./displayUnits";
+import { measurementInDisplayUnit } from "./displayUnits";
 import type { DisplayUnits, Measurement, NodeLevel, NodeState, ReadingKind } from "./nodeState";
 
 export type NodeOnMap = {
@@ -19,7 +19,7 @@ export type NodeOnMap = {
   registered: boolean;
   level: NodeLevel | null;
   ageSeconds: number;
-  // `value` and `unit` are the Node's own (cm, mm/h, hPa); `shown` is the Region's.
+  // `value` and `unit` are the Node's own (cm, mm/h, hPa, …); `shown` is the Region's.
   measurements: ({ kind: ReadingKind; shown: string } & Measurement)[];
 };
 
@@ -32,15 +32,6 @@ function displayed(kind: ReadingKind, measurement: Measurement): Measurement {
   return measurement;
 }
 
-const CONVERTED_KINDS = ["water_level", "rain_rate", "air_pressure"];
-
-// "3.2 ft" for a Measurement in the Node's own unit; kinds the Region has no unit for keep theirs.
-function shownIn(kind: ReadingKind, measurement: Measurement, units: DisplayUnits): string {
-  return CONVERTED_KINDS.includes(kind)
-    ? inDisplayUnit(measurement.value, kind as "water_level" | "rain_rate" | "air_pressure", units)
-    : `${measurement.value} ${measurement.unit}`;
-}
-
 function displayedMeasurements(
   measurements: Partial<Record<ReadingKind, Measurement>>,
   units: DisplayUnits,
@@ -48,7 +39,7 @@ function displayedMeasurements(
   return (Object.entries(measurements) as [ReadingKind, Measurement][]).map(
     ([kind, measurement]) => {
       const own = displayed(kind, measurement);
-      return { kind, ...own, shown: shownIn(kind, own, units) };
+      return { kind, ...own, shown: measurementInDisplayUnit(kind, own, units) };
     },
   );
 }
@@ -63,7 +54,9 @@ function waterLevelShown(
   units: DisplayUnits,
 ): string | null {
   const water = measurements.water_level;
-  return water ? shownIn("water_level", displayed("water_level", water), units) : null;
+  return water
+    ? measurementInDisplayUnit("water_level", displayed("water_level", water), units)
+    : null;
 }
 
 // A Node knows its own name; everyone else is shown by the name in the registry, or by id when

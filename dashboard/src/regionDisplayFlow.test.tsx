@@ -144,3 +144,35 @@ test("a river Sensor off the river does not claim to be dry", async () => {
   const card = await screen.findByRole("region", { name: "Node porch" });
   expect(within(card).queryByText(/dry/)).not.toBeInTheDocument();
 });
+
+test("a Sensor with all eight kinds lists them, and the camera has a picture number and no arrow", async () => {
+  stubNode(
+    fakeNodeState({
+      region: FAKE_REGION,
+      nodes: [
+        fakeNodeSnapshot("mast", {
+          measurements: {
+            water_level: { value: 1.5, unit: "m" },
+            rain_rate: { value: 10, unit: "mm/h" },
+            air_pressure: { value: 1013.25, unit: "hPa" },
+            soil_moisture: { value: 40, unit: "%" },
+            air_temperature: { value: 30, unit: "°C" },
+            humidity: { value: 80, unit: "%" },
+            wind_speed: { value: 10, unit: "m/s" },
+            camera: { value: 57, unit: "pic" },
+          },
+        }),
+      ],
+    }),
+  );
+  render(<App />);
+  const card = await screen.findByRole("region", { name: /Node mast/ });
+  expect(within(card).getAllByRole("listitem")).toHaveLength(8);
+  expect(within(card).getByText("Air temperature: 86 °F")).toBeInTheDocument();
+  expect(within(card).getByText("Humidity: 80 %")).toBeInTheDocument();
+  expect(within(card).getByText("Wind speed: 22 mph")).toBeInTheDocument();
+  const camera = within(card).getByText("Camera: Picture 57").closest("li") as HTMLElement;
+  expect(within(camera).queryByRole("img")).toBeNull();
+  const humidity = within(card).getByText("Humidity: 80 %").closest("li") as HTMLElement;
+  expect(within(humidity).getByRole("img")).toBeInTheDocument();
+});
