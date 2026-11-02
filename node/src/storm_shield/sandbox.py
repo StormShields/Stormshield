@@ -414,13 +414,18 @@ class _Controls(SandboxControls):
     def move_sensor(self, sensor_id: str, change: SensorChange) -> SandboxNodes:
         with self._lock:
             self._require_sensor(sensor_id)
+            before = self._unticked[sensor_id]
             if change.kinds is not None:
-                self._unticked[sensor_id] = self._unticked_by(
-                    change.kinds, self._offered(), self._unticked[sensor_id]
-                )
+                self._unticked[sensor_id] = self._unticked_by(change.kinds, self._offered(), before)
                 self._nodes.declare(sensor_id, self._kinds_without(self._unticked[sensor_id]))
-            self._nodes.move(sensor_id, change, self._river_km(change))
-            self._register_those_in_reach()
+            try:
+                self._nodes.move(sensor_id, change, self._river_km(change))
+                self._register_those_in_reach()
+            except SandboxRefused:
+                # A refused edit changes nothing, kinds included.
+                self._unticked[sensor_id] = before
+                self._nodes.declare(sensor_id, self._kinds_without(before))
+                raise
             return self.nodes()
 
     def remove_sensor(self, sensor_id: str) -> SandboxNodes:
