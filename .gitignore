@@ -33,3 +33,6 @@ node/data/
 # local demo state (data folders, logs, downloaded pack)
 /.demo/
 /.join-demo/
+
+# Sandbox app build output
+/dist-sandbox-app/
