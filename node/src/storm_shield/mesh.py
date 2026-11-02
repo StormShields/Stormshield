@@ -9,7 +9,12 @@ from pydantic import Field, TypeAdapter, ValidationError
 
 from storm_shield.community_reading import CommunityReading, Position
 from storm_shield.community_warning import CommunityWarning
-from storm_shield.node_registry import NodeRegistryMessage, SignUp
+from storm_shield.node_registry import (
+    MAX_SIGNED_MESSAGE_BYTES,
+    SIGNATURE_BYTES,
+    NodeRegistryMessage,
+    SignUp,
+)
 from storm_shield.official_alert import OfficialAlert
 from storm_shield.official_gauge import OfficialGaugeLevel
 from storm_shield.replay import ReplayClockMessage
@@ -42,6 +47,15 @@ _FORMAT_VERSIONS: dict[str, int] = {
     message_type.model_fields["kind"].default: message_type.model_fields["v"].default
     for message_type in get_args(Message)
 }
+
+
+class MessageTooLarge(ValueError):
+    """A signed message that does not fit in one Reticulum packet; both Meshes refuse it alike."""
+
+
+def refuse_over_one_packet(signed_bytes: int) -> None:
+    if signed_bytes > MAX_SIGNED_MESSAGE_BYTES:
+        raise MessageTooLarge(f"signed message is {signed_bytes} bytes, over one Reticulum packet")
 
 
 def decode_message(body: bytes) -> Message | None:
@@ -197,7 +211,9 @@ class InMemoryNetwork:
             return self._meshes.get(mesh.identity) is mesh
 
     def deliver(self, sender: str, message: Message) -> None:
-        self.deliver_bytes(sender, message.model_dump_json().encode())
+        body = message.model_dump_json().encode()
+        refuse_over_one_packet(len(body) + SIGNATURE_BYTES)
+        self.deliver_bytes(sender, body)
 
     def deliver_bytes(self, sender: str, body: bytes) -> None:
         """What the radio does: every Node the sender reaches decodes the same bytes, or drops them."""
