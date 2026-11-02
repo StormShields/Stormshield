@@ -54,3 +54,6 @@ class ReadingPublisher:
                 if kinds not in self._too_big_for:
                     self._too_big_for.add(kinds)
                     logger.error("this Node shared nothing: a reading of %s: %s", kinds, too_large)
+            else:
+                # A reading that fits again means the next oversized one is a new cause.
+                self._too_big_for.clear()

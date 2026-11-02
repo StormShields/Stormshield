@@ -108,3 +108,24 @@ def test_a_node_whose_reading_does_not_fit_logs_once_shares_nothing_and_keeps_go
     assert [record.levelno for record in caplog.records] == [logging.ERROR]
     assert "over one Reticulum packet" in caplog.text
     assert [m.node for m in heard if isinstance(m, CommunityReading)] == ["steady"]
+
+
+def test_a_reading_that_fits_again_lets_the_next_oversized_one_be_logged(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    network = InMemoryNetwork()
+    too_many = _readings([(f"kind_{n}", 1.0, "u") for n in range(40)])
+    sending = [too_many, a_calm_day(), too_many]
+    publisher = ReadingPublisher(
+        network.join("porch"),
+        position=lambda: Position(0, 0),
+        river_km=lambda: None,
+        measurements=lambda: sending.pop(0),
+        keep=lambda _node, _reading: None,
+    )
+
+    with caplog.at_level(logging.ERROR):
+        for _tick in range(3):
+            publisher.share()
+
+    assert len(caplog.records) == 2
