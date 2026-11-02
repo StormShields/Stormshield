@@ -773,48 +773,65 @@ def test_outside_the_app_the_sandbox_is_never_idle(pack: Path, scratch: Path) ->
         assert not sandbox.is_idle()
 
 
+def _serve_as_app(
+    monkeypatch: pytest.MonkeyPatch, pack: Path, port: int
+) -> tuple[threading.Thread, list[BaseException]]:
+    """Run `serve(app=True)` in a thread. Whatever it raises lands in the returned list, so a
+    thread that died on startup cannot pass for one that ended on purpose."""
+    # The Node CI job has no pnpm and no built dashboard; the dashboard is not what is tested.
+    monkeypatch.setattr(sandbox_module, "build_dashboard_if_missing", lambda: None)
+    monkeypatch.setattr(sandbox_module, "_open_browser_when_up", lambda server, url: None)
+    raised: list[BaseException] = []
+
+    def serve() -> None:
+        try:
+            sandbox_module.serve(port, "fort-myers", pack, app=True)
+        except BaseException as error:  # noqa: BLE001 - handed to the test thread to fail on
+            raised.append(error)
+
+    served = threading.Thread(target=serve)
+    served.start()
+    return served, raised
+
+
 def test_serving_the_app_ends_on_stop_and_removes_its_folder(
     pack: Path, scratch: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(sandbox_module, "_open_browser_when_up", lambda server, url: None)
     port = free_port()
-    served = threading.Thread(
-        target=sandbox_module.serve, args=(port, "fort-myers", pack), kwargs={"app": True}
-    )
-    served.start()
+    served, raised = _serve_as_app(monkeypatch, pack, port)
     try:
-        _wait_until_up(port)
+        _wait_until_up(port, served)
         stopped = httpx.post(
             f"http://127.0.0.1:{port}/api/sandbox/stop",
             headers={"Origin": f"http://127.0.0.1:{port}"},
         )
         assert stopped.status_code == 200
-        served.join(timeout=30)
-        assert not served.is_alive()
     finally:
-        if served.is_alive():  # pragma: no cover
-            pytest.fail("the app did not end after Stop")
+        served.join(timeout=30)
+    assert not served.is_alive(), "the app did not end after Stop"
+    assert raised == []
     assert list(scratch.iterdir()) == []
 
 
 def test_serving_the_app_ends_itself_once_idle_and_removes_its_folder(
     pack: Path, scratch: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(sandbox_module, "_open_browser_when_up", lambda server, url: None)
     monkeypatch.setattr(sandbox_module, "APP_IDLE_LIMIT", timedelta(seconds=2))
     monkeypatch.setattr(sandbox_module, "APP_WATCH_SECONDS", 0.2)
-    served = threading.Thread(
-        target=sandbox_module.serve, args=(free_port(), "fort-myers", pack), kwargs={"app": True}
-    )
-    served.start()
-    served.join(timeout=60)
-    assert not served.is_alive()
+    port = free_port()
+    served, raised = _serve_as_app(monkeypatch, pack, port)
+    try:
+        _wait_until_up(port, served)
+    finally:
+        served.join(timeout=60)
+    assert not served.is_alive(), "the app did not end itself when idle"
+    assert raised == []
     assert list(scratch.iterdir()) == []
 
 
-def _wait_until_up(port: int) -> None:
+def _wait_until_up(port: int, served: threading.Thread) -> None:
     deadline = time.monotonic() + 30
-    while time.monotonic() < deadline:
+    while time.monotonic() < deadline and served.is_alive():
         try:
             httpx.get(f"http://127.0.0.1:{port}/api/state", timeout=1)
             return
