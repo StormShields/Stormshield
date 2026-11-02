@@ -14,6 +14,9 @@ on:
       - node/src/storm_shield/cache_pack.py
       - node/src/storm_shield/sandbox_app.py
       - node/pyproject.toml
+      - node/uv.lock
+      - dashboard/**
+      - regions/**
   workflow_dispatch:
     inputs:
       version:
@@ -68,7 +71,7 @@ jobs:
 
   publish:
     name: Publish the Release
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10

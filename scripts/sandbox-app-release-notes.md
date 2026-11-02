@@ -5,7 +5,7 @@ Try Storm Shield on your own computer: nothing to install, and no terminal. Ever
 - **Mac (Apple Silicon: M1 or newer):** `Storm-Shield-Sandbox-macos-arm64.zip`
 - **Windows (64-bit):** `Storm-Shield-Sandbox-windows-x64.zip`
 
-Unzip it, then open **Storm Shield Sandbox**. Your browser opens the dashboard. Press **Stop** in the Sandbox Panel when you are done; it also ends by itself ten minutes after you close the tab. It is reachable only from your own computer.
+Unzip it, then open **Storm Shield Sandbox** (on Windows, the `Storm Shield Sandbox.exe` inside the unzipped folder). Your browser opens the dashboard. Press **Stop** in the Sandbox Panel when you are done; it also ends by itself ten minutes after you close the tab. It is reachable only from your own computer.
 
 ## The first time, your computer will warn you
 
