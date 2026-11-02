@@ -65,7 +65,7 @@ A phone or browser that shows the dashboard by connecting to a Node, without bei
 _Avoid_: client, user device
 
 **Sandbox**:
-A Hub and any number of simulated Sensor Nodes started by one command in one process, sharing an in-memory Mesh, for the team to try the app without a terminal juggling ports, slots and Hub ids. Sensors are placed on the map and the event is played from the dashboard. A message reaches only Nodes within a set radio range, directly or hopping through other Nodes. Every reading in it is a Simulated Reading.
+A Hub and any number of simulated Sensor Nodes started by one command (`scripts/sandbox.sh`) or a double-click on the Sandbox app (a Mac or Windows download that needs no terminal) in one process, sharing an in-memory Mesh, for the team to try the app without a terminal juggling ports, slots and Hub ids. Sensors are placed on the map and the event is played from the dashboard. A message reaches only Nodes within a set radio range, directly or hopping through other Nodes. Every reading in it is a Simulated Reading.
 _Avoid_: simulator, demo mode, playground
 
 ## Information

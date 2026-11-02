@@ -6,6 +6,20 @@ A local-first community sensor network: Nodes share readings over a local Mesh t
 
 *The Nepal replay, eight minutes in: s0, 58 km upstream, sees the river jump to 750 cm. The Hub signs a Community Warning, Flood Risk goes High, the wave is 16 minutes from the example home, and the Evacuation Plan sends the household to high ground because the Shelter is out of reach in time. Everything in these screenshots is SIMULATED, and every Event is labelled REPLAY.*
 
+## Try it
+
+Nothing to install and no terminal: download the Sandbox app from the [`sandbox-app-v1` Release](https://github.com/StormShields/Stormshield/releases/tag/sandbox-app-v1), unzip it and open it. Your browser shows the dashboard with a made-up Mesh of Sensors replaying a real flood. Everything in it is SIMULATED.
+
+- **Mac (Apple Silicon: M1 or newer):** `Storm-Shield-Sandbox-macos-arm64.zip`, then open **Storm Shield Sandbox**.
+- **Windows (64-bit):** `Storm-Shield-Sandbox-windows-x64.zip`, then open `Storm Shield Sandbox.exe` inside the unzipped folder.
+
+The app is not signed (signing needs paid accounts), so your computer warns you the first time. It is safe to continue; the source of everything in it is in this repository.
+
+- **Windows:** if "Windows protected your PC" appears, click **More info**, then **Run anyway**.
+- **Mac:** if it says the app "can't be opened", close that message, open **System Settings → Privacy & Security**, scroll down to the message about Storm Shield Sandbox, click **Open Anyway**, then confirm.
+
+Press **Stop** in the Sandbox Panel when you are done; the app also ends ten minutes after you close the tab. It is reachable only from your own computer. With a checkout, `scripts/sandbox.sh` does the same from a terminal.
+
 ## What it does
 
 **The Mesh**
@@ -30,7 +44,7 @@ A local-first community sensor network: Nodes share readings over a local Mesh t
 - A phone layout with Map, Readings, Alerts and Plan tabs.
 
 **The Sandbox**
-- `scripts/sandbox.sh` starts a Hub and four registered simulated Sensors in one process on an in-memory Mesh and opens the dashboard: no ports, slots or Hub ids to manage.
+- The Sandbox app (see Try it), or `scripts/sandbox.sh` with a checkout, starts a Hub and four registered simulated Sensors in one process on an in-memory Mesh and opens the dashboard: no ports, slots or Hub ids to manage.
 - From the Sandbox Panel you set the radio range (range circles and links on the map, messages hop from Node to Node), add, drag and remove Sensors, and pick an Event to play, pause, speed up or jump to a phase.
 - Each Sensor reads the Event's water surface at its own position, so moving one up the slope keeps it dry.
 
