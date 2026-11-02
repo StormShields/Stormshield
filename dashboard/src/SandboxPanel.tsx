@@ -14,6 +14,8 @@ type Props = {
   sandbox: SandboxNodes;
   regions: SandboxRegions | null;
   onSwitchRegion: (name: string) => Promise<void>;
+  // Present only in the app, the one Sandbox a Stop button can end.
+  onStop: (() => void) | null;
   problem: string | null;
   onSetRadioRange: (metres: number) => Promise<void>;
   // "Add Sensor" arms the map: the next tap places a Sensor. Pressing it again disarms.
@@ -42,6 +44,7 @@ export function SandboxPanel({
   sandbox,
   regions,
   onSwitchRegion,
+  onStop,
   problem,
   onSetRadioRange,
   placing,
@@ -94,6 +97,11 @@ export function SandboxPanel({
       >
         Add Sensor
       </button>
+      {onStop && (
+        <button type="button" className="sandbox-stop" onClick={onStop}>
+          Stop Sandbox
+        </button>
+      )}
       {problem && <p role="alert">{problem}</p>}
       <ReplayControls eventClock={eventClock} />
       <ul aria-label="Sandbox Nodes" className="sandbox-nodes">

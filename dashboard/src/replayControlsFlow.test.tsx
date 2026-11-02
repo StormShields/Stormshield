@@ -32,7 +32,7 @@ const MADE_UP_PHASES = [{ id: "only", label: "The only phase", event_t: REPLAY_S
 
 let replay: object;
 let events: object | null;
-let sandbox: { label: "SIMULATED" } | null;
+let sandbox: { label: "SIMULATED"; can_stop: false } | null;
 let posted: { path: string; body: unknown }[];
 let fetched: string[];
 
@@ -227,7 +227,7 @@ test("a running Event is labelled REPLAY beside its clock", async () => {
 
 test("the Sandbox Panel holds the same Replay controls", async () => {
   events = EVENTS;
-  sandbox = { label: "SIMULATED" };
+  sandbox = { label: "SIMULATED", can_stop: false };
   render(<App />);
   const panel = await screen.findByRole("region", { name: "Sandbox" });
   const picker = await within(panel).findByRole("combobox", { name: "Event" });

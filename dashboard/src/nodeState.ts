@@ -94,7 +94,8 @@ export type NodeState = {
   status: NodeStatus;
   registration: Registration;
   // Present only when the Node is the Sandbox's Hub; nothing in the Sandbox is a real reading.
-  sandbox: { label: "SIMULATED" } | null;
+  // `can_stop` is true only in the double-click app, whose Panel offers Stop.
+  sandbox: { label: "SIMULATED"; can_stop: boolean } | null;
   region: Region;
   hazard: Hazard;
   // The Node's own verdict that real Sensors are reporting; the dashboard never re-derives it.

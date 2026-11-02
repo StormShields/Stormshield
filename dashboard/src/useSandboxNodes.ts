@@ -49,6 +49,8 @@ export type SandboxFeed = {
   // Declares `kinds` on a Sensor that stays where it is.
   setSensorKinds: (id: string, position: [number, number], kinds: string[]) => Promise<void>;
   switchRegion: (name: string) => Promise<void>;
+  // Ends the Sandbox app; true once it has said it is stopping, false (with `problem` set) if not.
+  stopSandbox: () => Promise<boolean>;
 };
 
 async function ask<Answer = SandboxNodes>(path: string, init?: RequestInit): Promise<Answer> {
@@ -174,11 +176,24 @@ export function useSandboxNodes(inSandbox: boolean, onRegionSwitched: () => void
     [onRegionSwitched],
   );
 
+  const stopSandbox = useCallback(async () => {
+    setProblem(null);
+    try {
+      await ask("/api/sandbox/stop", sendJson("POST"));
+      return true;
+    } catch (error) {
+      console.error(error);
+      setProblem(`Could not stop the Sandbox: ${(error as Error).message}`);
+      return false;
+    }
+  }, []);
+
   return {
     sandbox: inSandbox ? sandbox : null,
     regions: inSandbox ? regions : null,
     problem,
     switchRegion,
+    stopSandbox,
     setRadioRange,
     addSensor,
     moveSensor,

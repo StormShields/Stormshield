@@ -2101,6 +2101,18 @@ section p.flood-prone-caption {
   margin-top: 0.75rem;
 }
 
+.sandbox-stop {
+  margin-top: 0.75rem;
+}
+
+.sandbox-stopped {
+  display: grid;
+  place-content: center;
+  min-height: 100vh;
+  padding: 2rem;
+  text-align: center;
+}
+
 .sandbox-add[aria-pressed="true"] {
   border-color: var(--accent);
   color: var(--accent);

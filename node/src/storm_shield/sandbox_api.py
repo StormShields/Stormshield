@@ -1,3 +1,4 @@
+import ipaddress
 from typing import Protocol
 
 from pydantic import BaseModel, Field
@@ -78,8 +79,34 @@ class SandboxRefused(Exception):
     """The Sandbox cannot do this; the message says why."""
 
 
+LOOPBACK_NAMES = {"127.0.0.1", "localhost", "[::1]"}
+
+
+def is_from_this_machine(client_host: str | None, host: str | None, origin: str | None) -> bool:
+    """Whether a request to end the Sandbox came from a page of its own, on this computer.
+
+    The client must be on loopback and the `Host` a loopback name, so a page that reached
+    loopback by rebinding its own domain is refused. An `Origin`, which a browser sends on every
+    cross-site POST, must be this Sandbox's own; a request without one is not from a browser page.
+    """
+    try:
+        if client_host is None or not ipaddress.ip_address(client_host).is_loopback:
+            return False
+    except ValueError:
+        return False
+    if host is None or host.rsplit(":", 1)[0] not in LOOPBACK_NAMES:
+        return False
+    return origin is None or origin == f"http://{host}"
+
+
 class SandboxControls(Protocol):
     """What the Sandbox lets its Hub's dashboard see and change about the simulated Mesh."""
+
+    def can_stop(self) -> bool:
+        """Whether this Sandbox is the app, which a Stop button in its Panel may end."""
+        ...
+
+    def stop(self) -> None: ...
 
     def nodes(self) -> SandboxNodes: ...
 

@@ -81,6 +81,7 @@ from storm_shield.sandbox_api import (
     SandboxRegions,
     SensorChange,
     UnknownSensor,
+    is_from_this_machine,
 )
 from storm_shield.settings import Role, Settings
 from storm_shield.shelter_status import (
@@ -111,6 +112,8 @@ class SandboxState(BaseModel):
     """Present in `/api/state` only in the Sandbox, where nothing is a real reading."""
 
     label: Literal["SIMULATED"] = "SIMULATED"
+    # Whether the Panel may offer a Stop button: only the double-click app can be stopped.
+    can_stop: bool = False
 
 
 class OfficialGaugeState(BaseModel):
@@ -781,7 +784,7 @@ def create_app(
             role=settings.role,
             status=internet.status,
             registration=registration(),
-            sandbox=SandboxState() if sandbox else None,
+            sandbox=SandboxState(can_stop=sandbox.can_stop()) if sandbox else None,
             region=region.summary(),
             hazard=region.hazard,
             live=full_snapshot.is_live(registered_ids),
@@ -1019,6 +1022,21 @@ def create_app(
             return set_replay(
                 event, "paused" if keeps_paused else "playing", event.event_t_at(phase.at)
             )
+
+    if sandbox is not None and sandbox.can_stop():
+
+        @app.post("/api/sandbox/stop")
+        def stop_sandbox(request: Request) -> dict[str, bool]:
+            if not is_from_this_machine(
+                request.client.host if request.client else None,
+                request.headers.get("host"),
+                request.headers.get("origin"),
+            ):
+                raise HTTPException(
+                    status_code=403, detail="only this Sandbox's own page can stop it"
+                )
+            sandbox.stop()
+            return {"stopping": True}
 
     if sandbox is not None:
 

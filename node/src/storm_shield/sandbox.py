@@ -8,7 +8,7 @@ import time
 import webbrowser
 from collections.abc import Callable
 from contextlib import ExitStack
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import TracebackType
@@ -53,6 +53,10 @@ SITE_TAKEN_WITHIN_M = 50.0
 SANDBOX_RADIO_RANGE_M = 40_000.0
 DOWNLOAD_TIMEOUT_SECONDS = 120
 BUILT_DASHBOARD = DASHBOARD_DIR / "index.html"
+# Browsers poll `/api/state` even from a background tab, so ten minutes of silence means no tab
+# is open.
+APP_IDLE_LIMIT = timedelta(minutes=10)
+APP_WATCH_SECONDS = 1.0
 
 
 class NodeSite(NamedTuple):
@@ -173,10 +177,14 @@ class _Switchboard:
     without restarting the server. The Hub's own loops run in its test client, so this answers the
     server's lifespan itself."""
 
-    def __init__(self) -> None:
+    def __init__(self, clock: Callable[[], datetime]) -> None:
         self.app: FastAPI
+        self._clock = clock
+        self.last_state_request = clock()
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "http" and scope["path"] == "/api/state":
+            self.last_state_request = self._clock()
         if scope["type"] != "lifespan":
             await self.app(scope, receive, send)
             return
@@ -198,6 +206,10 @@ class Sandbox:
 
     Switching Region starts a whole new Mesh from that Region's pack, found by `find_pack`, and
     swaps it in under `hub`; the old one is closed once the new one is up.
+
+    As the app (`app=True`) it can be stopped from its Panel, which sets `stopped`, and it counts as
+    `is_idle` once no dashboard has asked for `/api/state` for ten minutes; the caller serving it
+    watches both and ends the server, which leaves the `with` and removes the folder.
     """
 
     def __init__(
@@ -206,15 +218,23 @@ class Sandbox:
         region: str | None = None,
         *,
         find_pack: Callable[[str], Path] | None = None,
+        app: bool = False,
+        clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         _require_pack(pack)
+        self._app = app
+        self._clock = clock
+        self.stopped = threading.Event()
         self._first = (region or Settings().region, pack)
         self._find_pack = find_pack
         # Shared with the Hub's controls, so a Sensor is never edited on a Mesh that is being replaced.
         self._lock = threading.RLock()
         self._stack = ExitStack()
-        self.hub = _Switchboard()
+        self.hub = _Switchboard(clock)
         self.network: InMemoryNetwork
+
+    def is_idle(self) -> bool:
+        return self._app and self._clock() - self.hub.last_state_request > APP_IDLE_LIMIT
 
     def __enter__(self) -> Self:
         self._stack, self.hub.app, self.network = self._start(*self._first)
@@ -236,7 +256,9 @@ class Sandbox:
             directory = Path(
                 setup.enter_context(TemporaryDirectory(prefix="storm-shield-sandbox-"))
             )
-            nodes = SimulatedNodes(directory, radio_range_m=SANDBOX_RADIO_RANGE_M)
+            nodes = SimulatedNodes(
+                directory, radio_range_m=SANDBOX_RADIO_RANGE_M, clock=self._clock
+            )
             setup.callback(nodes.close)
             hub_client = self._start_hub(
                 nodes, hub_site, region, pack, pack_bytes, len(sensor_sites)
@@ -286,6 +308,7 @@ class Sandbox:
                 sensors_placed,
                 self._switch_region,
                 self._lock,
+                self.stopped.set if self._app else None,
             ),
         )
 
@@ -325,8 +348,10 @@ class _Controls(SandboxControls):
         sensors_placed: int,
         switch_region: Callable[[str], None],
         lock: threading.RLock,
+        stop: Callable[[], None] | None,
     ) -> None:
         self._nodes = nodes
+        self._stop = stop
         self._pack = pack
         self._river = river
         self._region = region
@@ -345,6 +370,13 @@ class _Controls(SandboxControls):
         self._numbers = itertools.count(sensors_placed)
         # Sensors with no path to the Hub when they were placed: it cannot hear them sign up.
         self._unregistered: set[str] = set()
+
+    def can_stop(self) -> bool:
+        return self._stop is not None
+
+    def stop(self) -> None:
+        if self._stop is not None:
+            self._stop()
 
     def nodes(self) -> SandboxNodes:
         with self._lock:
@@ -641,8 +673,21 @@ def sandbox_server_config(app: Any, port: int) -> uvicorn.Config:
     return uvicorn.Config(app, host=LOOPBACK_HOST, port=port, log_config=None)
 
 
-def serve(port: int, region: str, pack: Path | None = None) -> None:
-    """Start the Sandbox on `region`, open the browser once it answers, and serve until stopped."""
+def _end_when_stopped_or_idle(sandbox: Sandbox, server: uvicorn.Server) -> None:
+    while not server.should_exit:
+        if sandbox.stopped.wait(APP_WATCH_SECONDS):
+            logger.info("the Sandbox was stopped from its Panel")
+            break
+        if sandbox.is_idle():
+            logger.info("no dashboard has asked for the state for %s: ending", APP_IDLE_LIMIT)
+            break
+    server.should_exit = True
+
+
+def serve(port: int, region: str, pack: Path | None = None, *, app: bool = False) -> None:
+    """Start the Sandbox on `region`, open the browser once it answers, and serve until stopped.
+
+    As the app it can also be stopped from its Panel and ends itself when left idle."""
     with httpx.Client(timeout=DOWNLOAD_TIMEOUT_SECONDS, follow_redirects=True) as client:
         cache_pack_url = Settings().cache_pack_url
 
@@ -651,9 +696,13 @@ def serve(port: int, region: str, pack: Path | None = None) -> None:
 
         pack = pack or find_pack(region)
         build_dashboard_if_missing()
-        with Sandbox(pack, region, find_pack=find_pack) as sandbox:
+        with Sandbox(pack, region, find_pack=find_pack, app=app) as sandbox:
             server = uvicorn.Server(sandbox_server_config(sandbox.hub, port))
             url = f"http://{LOOPBACK_HOST}:{port}"
             logger.info("Sandbox dashboard: %s (everything in it is SIMULATED)", url)
             threading.Thread(target=_open_browser_when_up, args=(server, url), daemon=True).start()
+            if app:
+                threading.Thread(
+                    target=_end_when_stopped_or_idle, args=(sandbox, server), daemon=True
+                ).start()
             server.run()
