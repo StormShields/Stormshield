@@ -61,7 +61,7 @@ jobs:
           cache-dependency-path: dashboard/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile && pnpm build
         working-directory: dashboard
-      - run: uv run --project node --with "pyinstaller>=6,<7" python scripts/sandbox_app_build.py
+      - run: uv run --project node --with "pyinstaller>=6,<7" --with tzdata python scripts/sandbox_app_build.py
       - run: uv run --project node python scripts/sandbox_app_smoke.py dist-sandbox-app/Storm-Shield-Sandbox-${{ matrix.platform }}.zip
       - uses: actions/upload-artifact@v4
         with:

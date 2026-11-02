@@ -4,7 +4,7 @@ It holds Python, the Node package, the built dashboard, `regions/` and the curre
 each built-in Region, so the app downloads nothing on its first run. PyInstaller cannot
 cross-build, so each platform runs this on its own machine (.github/workflows/sandbox-app.yml).
 
-    uv run --project node --with "pyinstaller>=6,<7" python scripts/sandbox_app_build.py
+    uv run --project node --with "pyinstaller>=6,<7" --with tzdata python scripts/sandbox_app_build.py
 """
 
 import shutil
@@ -58,6 +58,8 @@ def bundle(packs: Path) -> Path:
         "--collect-submodules", "storm_shield",
         "--collect-submodules", "uvicorn",
         "--collect-all", "RNS",
+        # Windows has no time zone database of its own; Regions name IANA zones.
+        "--collect-data", "tzdata",
     ]  # fmt: skip
     for source, inside in data:
         command += ["--add-data", f"{source}{';' if sys.platform == 'win32' else ':'}{inside}"]
